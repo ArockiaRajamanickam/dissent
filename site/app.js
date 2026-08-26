@@ -786,6 +786,27 @@ function renderLive() {
     </div>
     <div id="chg-out"></div>
 
+    <h2 style="margin-top:30px">The Time Machine</h2>
+    <p>Send the model back and make it grade itself. Pick a state and a year: the server pulls the
+    federal file <b>as it stood then</b>, scores every structure with the model frozen in 2015, ranks
+    them by dissent, and takes the top slice as its alert list. Then it pulls the <b>2025</b> file and
+    checks what actually happened to those structures.</p>
+    <p class="note">We grade against the operationally real target: of the structures still in fair or
+    better condition at the start, which had crossed into <b>poor</b> by 2025. The looser
+    "lost a rating step" target flatters any model through regression to the mean, so we do not use it.
+    Every result prints the base rate and the no-model baseline beside our own number, including when
+    we lose.</p>
+    <div class="ctrlbar">
+      <select id="bt-state" class="live-select mono">${opts}</select>
+      <select id="bt-year" class="live-select mono">
+        ${[2017, 2018, 2019, 2020, 2021].map(y =>
+          `<option value="${y}"${y === 2019 ? ' selected' : ''}>START ${y}</option>`).join('')}
+      </select>
+      <button class="btn" id="bt-run">RUN THE BACKTEST</button>
+      <span class="ctrl-status" id="bt-status">READY</span>
+    </div>
+    <div id="bt-out"></div>
+
     <h2 style="margin-top:30px">The National Dissent Index</h2>
     <p>Every audit the server runs also measures one thing across <b>all</b> of that state's structures,
     not just the flagged ones: how much sunnier its filed ratings run than the physics witness. The
@@ -806,6 +827,7 @@ function renderLive() {
   $('#live-run').onclick = runLiveAudit;
   $('#index-refresh').onclick = renderIndex;
   $('#chg-run').onclick = runChanges;
+  $('#bt-run').onclick = runBacktest;
   renderIndex();
   renderWhatIf();
 }
@@ -856,6 +878,98 @@ async function runChanges() {
   } finally { btn.disabled = false; }
 }
 
+async function runBacktest() {
+  const st = $('#bt-state').value, yr = $('#bt-year').value;
+  const out = $('#bt-out'), stat = $('#bt-status');
+  stat.textContent = `PULLING ${st} ${yr} AND 2025…`;
+  out.innerHTML = '<div class="card"><p class="mono dim">Two federal files, every structure '
+    + 'scored by a model frozen in 2015, then graded against what happened. This takes '
+    + 'a few seconds; large states take longer.</p></div>';
+  const t0 = Date.now();
+  try {
+    const r = await fetch(`${API_BASE}/api/backtest/${st}?start=${yr}&budget=0.15`,
+                          { cache: 'no-store' });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.status);
+    stat.textContent = `GRADED IN ${d.seconds}s`;
+    const fine = d.segments.record_still_fine, poor = d.segments.record_already_poor;
+    const beatRating = (d.lift_vs_rating_matched || 0) > 1;
+    out.innerHTML = `
+      <div class="live-summary">
+        <div><b>${fmt(d.eligible)}</b><span>STRUCTURES ELIGIBLE IN ${d.start_year}</span></div>
+        <div><b>${d.events_total}</b><span>CROSSED INTO POOR BY 2025</span></div>
+        <div><b>${(d.base_rate * 100).toFixed(1)}%</b><span>BASE RATE</span></div>
+        <div><b style="color:${beatRating ? '#0E8A78' : '#B23348'}">${(d.lift_vs_rating_matched || 0).toFixed(2)}×</b>
+             <span>LIFT OVER A RATING-MATCHED PICK</span></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <p class="mono" style="font-size:13px;letter-spacing:.02em">
+          THE SCOREBOARD — ALERT BUDGET ${Math.round(d.alert_budget * 100)}% = ${fmt(d.alert_size)} STRUCTURES
+        </p>
+        <div class="tablewrap" style="max-height:none">
+        <table class="docket"><thead><tr>
+          <th>Ranking</th><th>Failures found</th><th>Precision</th><th>vs base rate</th>
+        </tr></thead><tbody>
+          <tr><td><b>Dissent (ours)</b></td><td class="mono">${d.events_caught} of ${d.events_total}</td>
+              <td class="mono">${(d.precision_at_k * 100).toFixed(1)}%</td>
+              <td class="mono">${(d.lift_vs_random || 0).toFixed(2)}×</td></tr>
+          <tr><td>Worst recorded rating first <span class="dim">(no model)</span></td>
+              <td class="mono">${d.naive_worst_first_caught} of ${d.events_total}</td>
+              <td class="mono">${(d.naive_worst_first_caught / d.alert_size * 100).toFixed(1)}%</td>
+              <td class="mono">${(d.naive_worst_first_lift || 0).toFixed(2)}×</td></tr>
+          <tr><td>Blind pick, same rating mix as ours</td>
+              <td class="mono">${d.rating_matched_expected} expected</td>
+              <td class="mono">—</td><td class="mono">1.00×</td></tr>
+        </tbody></table></div>
+        <p class="note" style="margin-top:10px">${esc(d.reading)}</p>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <p class="mono" style="font-size:13px;letter-spacing:.02em">WHERE THE TWO RANKINGS DIFFER</p>
+        <div class="tablewrap" style="max-height:none">
+        <table class="docket"><thead><tr>
+          <th>What the ${d.start_year} file said</th><th>Failures</th>
+          <th>Found by dissent</th><th>Found by worst-first</th></tr></thead><tbody>
+          <tr><td><b>Still called it fine (6+)</b></td><td class="mono">${fine.events}</td>
+              <td class="mono" style="color:#0E8A78"><b>${fine.found_by_dissent}</b></td>
+              <td class="mono">${fine.found_by_worst_first}</td></tr>
+          <tr><td>Already called it poor-ish (5)</td><td class="mono">${poor.events}</td>
+              <td class="mono">${poor.found_by_dissent}</td>
+              <td class="mono">${poor.found_by_worst_first}</td></tr>
+        </tbody></table></div>
+        <p class="note" style="margin-top:10px">Sorting by the worst recorded rating is a strong
+        baseline and often wins on the raw count — a structure already rated 5 is one step from poor,
+        so that ranking is close to a deterministic solution. It is also blind by construction to a
+        structure whose file still reads fine, and that is the only case carrying any warning.</p>
+      </div>
+      ${d.hit_list.length ? `
+      <div class="card" style="margin-top:12px">
+        <p class="mono" style="font-size:13px;letter-spacing:.02em">CAUGHT EARLY — REAL STRUCTURES</p>
+        <div class="tablewrap" style="max-height:340px">
+        <table class="docket"><thead><tr>
+          <th>Structure</th><th>Carries</th><th>Built</th>
+          <th>${d.start_year} record</th><th>${d.start_year} physics</th><th>2025 record</th>
+        </tr></thead><tbody>
+        ${d.hit_list.map(x => `<tr>
+          <td class="mono">${esc(x.sid)}</td>
+          <td>${esc(x.carries || '—')}<span class="dim"> over ${esc(x.crosses || '—')}</span></td>
+          <td class="mono">${x.built || '—'}</td>
+          <td class="mono">${x.recorded_then}</td>
+          <td class="mono" style="color:#B23348">${x.physics_then}</td>
+          <td class="mono"><b>${x.recorded_now}</b></td></tr>`).join('')}
+        </tbody></table></div>
+      </div>` : ''}
+      <p class="note">${esc(d.honesty)} ${d.dropped_untraceable
+        ? `${fmt(d.dropped_untraceable)} structures present in ${d.start_year} could not be traced
+           into the 2025 file — replaced, removed or transferred — and are excluded rather than
+           counted either way.` : ''}</p>`;
+  } catch (e) {
+    stat.textContent = 'THE BACKTEST DID NOT COMPLETE';
+    out.innerHTML = `<div class="card"><p>${esc(String(e.message || e))}. Two federal files have to
+      be pulled for this; free instances sleep, so try once more. Small states answer fastest.</p>
+      <p class="note">Elapsed ${((Date.now() - t0) / 1000).toFixed(0)}s.</p></div>`;
+  }
+}
+
 async function renderIndex() {
   const out = $('#index-out'), stat = $('#index-status');
   if (!out) return;
@@ -870,31 +984,56 @@ async function renderIndex() {
         + 'becomes its first row.</p></div>';
       return;
     }
-    stat.textContent = `${d.jurisdictions_scored} OF ${d.of} JURISDICTIONS | ${fmt(d.structures_covered)} STRUCTURES`;
-    const worst = d.index[0], best = d.index[d.index.length - 1];
+    stat.textContent = `${d.rankable} RANKABLE | ${d.withheld} WITHHELD | ${fmt(d.structures_covered)} STRUCTURES`;
+    const worst = d.index[0];
     out.innerHTML = `
       <div class="live-summary">
-        <div><b>${d.jurisdictions_scored}/${d.of}</b><span>JURISDICTIONS SCORED</span></div>
-        <div><b>${fmt(d.structures_covered)}</b><span>STRUCTURES IN THE INDEX</span></div>
-        <div><b>${d.national_mean_optimism > 0 ? '+' : ''}${(d.national_mean_optimism || 0).toFixed(2)}</b><span>MEAN RECORD OPTIMISM</span></div>
-        <div><b>${esc(worst.state)}</b><span>SUNNIEST RECORDS OF THOSE SCORED</span></div>
+        <div><b>${d.jurisdictions_scored}/${d.of}</b><span>JURISDICTIONS AUDITED</span></div>
+        <div><b>${fmt(d.structures_covered)}</b><span>STRUCTURES SCORED</span></div>
+        <div><b>${d.rankable}</b><span>INSIDE THE CALIBRATION ENVELOPE</span></div>
+        <div><b>${esc(worst.state)}</b><span>SUNNIEST RECORDS WE WILL RANK</span></div>
       </div>
       <div class="tablewrap" style="max-height:none;margin-top:12px">
       <table class="docket"><thead><tr>
         <th>#</th><th>Jurisdiction</th><th>Structures</th><th>Record avg</th><th>Physics avg</th>
-        <th>Optimism</th><th>Share sunnier</th><th>Rated poor</th></tr></thead><tbody>
+        <th>Optimism</th><th>Share sunnier</th><th>Rated poor</th><th>Applicability</th></tr></thead><tbody>
       ${d.index.map((x, i) => `<tr>
         <td class="mono">${i + 1}</td>
-        <td><b>${esc(x.state)}</b></td>
+        <td><b>${esc(x.state)}</b>${x.source === 'live'
+          ? '<span class="dim mono" style="font-size:10px"> LIVE</span>' : ''}</td>
         <td class="mono">${fmt(x.structures)}</td>
         <td class="mono">${x.mean_recorded.toFixed(2)}</td>
         <td class="mono">${x.mean_physics.toFixed(2)}</td>
         <td class="mono" style="color:${x.mean_optimism > 0 ? '#B23348' : '#0E8A78'}">
           ${x.mean_optimism > 0 ? '+' : ''}${x.mean_optimism.toFixed(2)}</td>
         <td class="mono">${Math.round(x.pct_optimistic * 100)}%</td>
-        <td class="mono">${Math.round(x.poor_share * 100)}%</td></tr>`).join('')}
+        <td class="mono">${Math.round(x.poor_share * 100)}%</td>
+        <td class="mono dim" style="font-size:11px">${x.tier === 'in_envelope'
+          ? 'calibrated here' : `${x.envelope_distance}× outside`}</td></tr>`).join('')}
       </tbody></table></div>
-      <p class="note">${esc(d.caveat)}</p>`;
+      <p class="note">${esc(d.caveat)}</p>
+      ${d.withheld_index && d.withheld_index.length ? `
+      <div class="card" style="margin-top:14px">
+        <p class="mono" style="font-size:13px;letter-spacing:.02em">
+          ${d.withheld_index.length} JURISDICTIONS RANKED NOWHERE — AND WHY
+        </p>
+        <p>The physics witness was calibrated on ${(d.calibrated_on || []).join(', ')}: cold, wet,
+        Atlantic-seaboard states. These ${d.withheld_index.length} sit more than one envelope width
+        outside that climate, where recorded-minus-physics stops being readable as record optimism
+        because it confounds a real signal with our own model bias. They are still audited and still
+        get a docket. We simply decline to say their inspectors are optimistic.</p>
+        <div class="tablewrap" style="max-height:220px">
+        <table class="docket"><thead><tr>
+          <th>Jurisdiction</th><th>Structures</th><th>Distance outside</th>
+          <th>What puts it outside</th><th>Ranking</th></tr></thead><tbody>
+        ${d.withheld_index.map(x => `<tr>
+          <td><b>${esc(x.state)}</b></td>
+          <td class="mono">${fmt(x.structures)}</td>
+          <td class="mono">${x.envelope_distance}×</td>
+          <td class="dim">${esc(x.envelope_driver || '—')}</td>
+          <td class="mono dim">withheld</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>` : ''}`;
   } catch (e) {
     stat.textContent = 'THE API DID NOT ANSWER';
     out.innerHTML = '<div class="card"><p>The index needs the server. Free instances sleep; '

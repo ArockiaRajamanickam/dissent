@@ -428,7 +428,7 @@ def _audit_chunked(st, keep_cap=4000):
         wx = {k: MEDIANS[k] for k in ('ft', 'ft5', 'ft_cum', 'precip5', 'heavy5', 'max1d')}
     n = 0
     s_gap = s_rec = s_phys = 0.0
-    n_opt = n_poor = 0
+    n_opt = n_poor = n_flagged = 0
     out = []
     with nbi_file(st) as path:
         for sub in nbi_chunks(path):
@@ -439,6 +439,7 @@ def _audit_chunked(st, keep_cap=4000):
             s_gap += float(gap.sum()); s_rec += float(rec.sum()); s_phys += float(preds.sum())
             n_opt += int((gap > 0).sum()); n_poor += int((rec <= 4).sum())
             idx = np.flatnonzero((rec > np.round(preds + Q90, 2)) | (preds <= 4.0))
+            n_flagged += len(idx)      # true total, independent of what we retain
             if not len(idx):
                 continue
             hit = sub.iloc[idx]
@@ -452,7 +453,8 @@ def _audit_chunked(st, keep_cap=4000):
                            _series(hit, 'FEATURES_DESC_006A'),
                            _series(hit, 'YEAR_BUILT_027'), _series(hit, 'ADT_029'),
                            hit['__rating'].tolist(), preds[idx]))
-            # keep the accumulator itself bounded on very large jurisdictions
+            # Keep the accumulator bounded on very large jurisdictions. Only the
+            # retained docket is trimmed; n_flagged remains the true count.
             if len(out) > keep_cap * 2:
                 out.sort(key=lambda d: -d['priority'])
                 del out[keep_cap:]
@@ -462,7 +464,7 @@ def _audit_chunked(st, keep_cap=4000):
                  mean_recorded=s_rec / n, mean_physics=s_phys / n,
                  poor_share=n_poor / n)
     out.sort(key=lambda d: -d['priority'])
-    return n, stats, out
+    return n, stats, out, n_flagged
 
 @app.get('/api/audit/{state}')
 def audit(state: str, limit: int = Query(25, ge=1, le=200)):
@@ -475,14 +477,14 @@ def audit(state: str, limit: int = Query(25, ge=1, le=200)):
         raise HTTPException(404, f'unknown jurisdiction {st}')
     t0 = time.time()
     try:
-        n_rated, stats, out = _audit_chunked(st)
+        n_rated, stats, out, n_flagged = _audit_chunked(st)
     except requests.RequestException as e:
         raise HTTPException(502, f'could not read the federal file for {st}: {e}')
     secs = round(time.time() - t0, 2)
     c = db()
     now = datetime.now(timezone.utc).isoformat(timespec='seconds')
     c.execute('INSERT INTO audit_log (at, state, structures, dissents, seconds) VALUES (?,?,?,?,?)',
-              (now, st, n_rated, len(out), secs))
+              (now, st, n_rated, n_flagged, secs))
     c.execute("""INSERT INTO state_index (state, structures, flagged, mean_optimism,
                  pct_optimistic, mean_recorded, mean_physics, poor_share, computed_at, seconds)
                  VALUES (?,?,?,?,?,?,?,?,?,?)
@@ -491,12 +493,13 @@ def audit(state: str, limit: int = Query(25, ge=1, le=200)):
                  pct_optimistic=excluded.pct_optimistic, mean_recorded=excluded.mean_recorded,
                  mean_physics=excluded.mean_physics, poor_share=excluded.poor_share,
                  computed_at=excluded.computed_at, seconds=excluded.seconds""",
-              (st, n_rated, len(out), round(stats['mean_optimism'], 4),
+              (st, n_rated, n_flagged, round(stats['mean_optimism'], 4),
                round(stats['pct_optimistic'], 4), round(stats['mean_recorded'], 3),
                round(stats['mean_physics'], 3), round(stats['poor_share'], 4), now, secs))
     c.commit(); c.close()
     return dict(state=st, nbi_year=NBI_YEAR, structures_scored=int(n_rated),
-                flagged=len(out), seconds=secs, index=stats,
+                flagged=n_flagged, seconds=secs, index=stats,
+                docket_retained=len(out),
                 note=('Single-snapshot audit: state dissent and physics severity only. '
                       'The trend channel needs the full trajectory, which the four-state '
                       'fleet build provides.'),
