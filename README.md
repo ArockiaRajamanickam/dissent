@@ -5,6 +5,12 @@ AI Innovation Challenge 2026, Battle of Intelligence, Round 3: AI Evolution.
 
 **Live deployment: https://dissent-nexus.netlify.app**
 
+Now a four-state fleet: Rhode Island, Vermont, New Hampshire and Delaware —
+234,801 real inspection records across 9,766 structures, one pooled model,
+per-state dockets with a jurisdiction switcher in the console. Validated on
+182 held-out post-2018 events: 29% flagged early inside a top-15% budget
+(about 2x chance), median lead six years.
+
 Infrastructure does not fail silently. It fails contradicted. DISSENT maintains two
 independent accounts of every bridge in an inventory: the Paper Witness (the official
 inspection record) and the Physics Witness (a model that predicts what the condition

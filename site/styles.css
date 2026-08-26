@@ -409,3 +409,10 @@ table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font
   #world-side { flex: none; height: 300px; border-right: none; border-bottom: 1px solid var(--hairline); }
   #world-list { flex: none; }
 }
+
+.jur-chips { display: flex; gap: 4px; margin-left: 14px; margin-right: auto; }
+.jurchip { background: transparent; color: var(--chrome-dim); border: 1px solid var(--hairline);
+  font-size: 10px; letter-spacing: 0.6px; padding: 3px 9px; cursor: pointer;
+  transition: color 140ms var(--ease), border-color 140ms var(--ease); }
+.jurchip:hover { color: #fff; border-color: var(--chrome-dim); }
+.jurchip.active { color: #fff; background: var(--crimson); border-color: var(--crimson); }

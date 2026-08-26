@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the DISSENT asset ledger from raw FHWA NBI files (Rhode Island).
+"""Build the DISSENT asset ledger from raw FHWA NBI files (RI, VT, NH, DE).
 
 Parses 1992-2025 delimited NBI files into one trajectory per structure and
 mines "record forced to catch up" proxy events (sudden >=2-step condition
@@ -70,15 +70,19 @@ def cond(v):
 
 
 rows = []
-for path in sorted(glob.glob(os.path.join(RAW, 'RI*.txt'))):
-    year = int(re.search(r'RI(\d{4})', path).group(1))
+for path in sorted(glob.glob(os.path.join(RAW, '[A-Z][A-Z]*.txt'))):
+    m = re.search(r'([A-Z]{2})(\d{4})\.txt$', path)
+    if not m:
+        continue
+    st, year = m.group(1), int(m.group(2))
     df = pd.read_csv(path, dtype=str, usecols=lambda c: c in KEEP,
                      on_bad_lines='skip', encoding_errors='replace')
     df = df.rename(columns=KEEP)
     df['year'] = year
+    df['state'] = st
     rows.append(df)
 panel = pd.concat(rows, ignore_index=True)
-panel['sid'] = panel['sid'].str.strip()
+panel['sid'] = panel['state'] + ':' + panel['sid'].str.strip()
 panel = panel.drop_duplicates(subset=['sid', 'year'], keep='first')
 
 for c in ['deck', 'superstructure', 'substructure', 'culvert']:

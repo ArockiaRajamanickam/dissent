@@ -19,6 +19,19 @@ POINTS = [
     ('west_warwick', 41.70, -71.50),
     ('northwest', 41.95, -71.65),
     ('south_county', 41.55, -71.65),
+    ('vt_burlington', 44.48, -73.21),
+    ('vt_rutland', 43.60, -72.97),
+    ('vt_stjohnsbury', 44.42, -72.02),
+    ('vt_brattleboro', 42.85, -72.56),
+    ('vt_newport', 44.93, -72.20),
+    ('nh_concord', 43.20, -71.54),
+    ('nh_whitemtns', 44.27, -71.30),
+    ('nh_manchester', 42.99, -71.45),
+    ('nh_portsmouth', 43.08, -70.76),
+    ('nh_north', 44.75, -71.30),
+    ('de_wilmington', 39.74, -75.55),
+    ('de_dover', 39.16, -75.52),
+    ('de_georgetown', 38.69, -75.40),
 ]
 
 URL = ('https://archive-api.open-meteo.com/v1/archive?latitude={lat}'

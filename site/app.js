@@ -3,6 +3,7 @@
 
 const REPO_URL = 'https://github.com/ArockiaRajamanickam/dissent';
 const state = { assets: [], summary: null, events: null, morandi: null,
+                world: null, jur: 'RI', eventsRI: null,
                 bandFilter: 'priority', query: '', sortKey: 'rank', sortAsc: true };
 const $ = (s, el) => (el || document).querySelector(s);
 const fmt = n => n === null || n === undefined ? '—' : n.toLocaleString('en-US');
@@ -141,7 +142,7 @@ function renderChrome() {
   const s = state.summary;
   const lift = (s.event_recall / s.budget_frac).toFixed(1);
   $('#runline').textContent =
-    `RHODE ISLAND | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | DOCKET GENERATED ${s.generated} | ${fmt(s.n_assets)} OPEN STRUCTURES`;
+    `${(s.state_name || 'RHODE ISLAND').toUpperCase()} | FOUR-STATE FLEET, ${fmt(s.n_structures)} STRUCTURES | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | GENERATED ${s.generated}`;
   $('#stat-band').innerHTML =
     `<b>${fmt(s.n_records)}</b> FILINGS<span class="sep">|</span>` +
     `OFF BY <b>${s.mae_test}</b> STEPS, UNSEEN YEARS<span class="sep">|</span>` +
@@ -156,7 +157,8 @@ function renderChrome() {
   $('#sb-right').innerHTML =
     `<span class="ok">CONFORMAL ${Math.round(s.coverage * 100)}% (TARGET 90%)</span> | OPERATOR: NEXUS NETWORK`;
   $('#panel-title').textContent =
-    `DISSENT DOCKET | Q3 2026 | CAP ${nI + nS + nW} OF ${fmt(s.n_assets)}`;
+    `${(s.state_name || '').toUpperCase()} DOCKET | Q3 2026 | CAP ${nI + nS + nW} OF ${fmt(s.n_assets)}`;
+  renderJurChips();
   const rd = document.querySelector('.run-dot');
   if (rd) { rd.classList.add('live'); rd.title = 'model artifacts loaded, console live'; }
 }
@@ -197,7 +199,7 @@ function renderDocketTools() {
       ${['priority', 'inspect', 'schedule', 'watch', 'all'].map(b =>
         `<button class="chip ${state.bandFilter === b ? 'active' : ''}" data-band="${b}">` +
         `${b === 'priority' ? 'DOCKET' : b === 'all' ? 'ALL' : BAND_LABEL[b]} <span class="n">${counts[b]}</span></button>`).join('')}
-      <input class="search" id="docket-search" placeholder="search 965 structures" value="${state.query}">
+      <input class="search" id="docket-search" placeholder="search ${fmt(state.summary.n_assets)} structures" value="${state.query}">
       <span class="result-count" id="result-count"></span>
     </div>`;
   document.querySelectorAll('#docket-tools .chip').forEach(c => c.onclick = () => {
@@ -372,6 +374,12 @@ async function initMap() {
     if (ri) L.geoJSON(ri, { style: { color: '#8A93B8', weight: 1.2,
       dashArray: '5 4', fill: false, opacity: 0.55 } }).addTo(__map);
   } catch (e) { /* boundary optional */ }
+  rebuildMarkers();
+}
+function rebuildMarkers() {
+  if (!__map) return;
+  Object.values(__markers).forEach(mk => __map.removeLayer(mk));
+  for (const k in __markers) delete __markers[k];
   const pts = [];
   ['clear', 'watch', 'schedule', 'inspect'].forEach(band => {
     state.assets.filter(a => a.band === band && a.lat && a.lon).forEach(a => {
@@ -418,7 +426,7 @@ function applyMarkerFilter() {
 
 /* ============ case file: washington ============ */
 function renderWashington() {
-  const w = state.events.washington;
+  const w = (state.eventsRI || state.events).washington;
   const v = $('#paper-washington');
   if (!w) { v.innerHTML = '<p>No featured case.</p>'; return; }
   const dy = w.dissent_by_year;
@@ -564,9 +572,11 @@ function renderMethod() {
       <b>Physics Witness</b> (a model that predicts what the rating should be from evidence alone, never having seen
       any inspector's opinion). A calibrated disagreement between them is the product, and every disagreement is
       filed as a dossier with a concrete obligation attached.</p>
-      <div class="step"><span class="n">STEP 01</span><p><b>Ledger.</b> All ${s.years[1] - s.years[0] + 1} annual FHWA National Bridge
-        Inventory files for Rhode Island (${fmt(s.n_records)} records, ${fmt(s.n_assets)} open structures) parsed into one
-        trajectory per asset. Rhode Island is the deliberate pilot: the worst bridge stock in the nation.</p></div>
+      <div class="step"><span class="n">STEP 01</span><p><b>Ledger.</b> ${s.states.length * (s.years[1] - s.years[0] + 1)} annual FHWA National Bridge
+        Inventory files across four states: Rhode Island, Vermont, New Hampshire and Delaware
+        (${fmt(s.n_records)} records, ${fmt(s.n_structures)} structures) parsed into one trajectory per asset.
+        Rhode Island is the flagship pilot: the worst bridge stock in the nation. One model is trained,
+        pooled across the fleet; each state gets its own docket and inspection budget.</p></div>
       <div class="step"><span class="n">STEP 02</span><p><b>Physics evidence.</b> Structure age, years since major work, traffic
         volume and truck share, structural form and material, length and skew, plus real weather histories from
         ERA5 reanalysis (Open-Meteo archive): freeze-thaw cycle days, cumulative frost exposure, heavy-rain days,
@@ -585,8 +595,8 @@ function renderMethod() {
         ${s.bands.schedule} scheduled, ${s.bands.watch} watched per quarter, an 8.7% cap that is stricter than the 15% budget
         used in validation). Every flagged asset carries a dossier: what the record claims, what physics shows, which
         evidence moved the verdict, and the obligation created.</p></div>
-      <div class="step"><span class="n">STEP 06</span><p><b>Validation on the future.</b> ${s.n_events_total} "record forced to catch up"
-        events were mined from the trajectories (sudden drops of 2+ rating steps, or closures). The ${s.n_events_test} that
+      <div class="step"><span class="n">STEP 06</span><p><b>Validation on the future.</b> ${fmt(s.n_events_total)} "record forced to catch up"
+        events were mined from the four-state trajectories (sudden drops of 2+ rating steps, or closures). The ${s.n_events_test} that
         occur after 2018 are pure holdout: the frozen model flagged ${Math.round(s.event_recall * 100)}% of them inside its
         top-${Math.round(s.budget_frac * 100)}% budget (${(s.event_recall / s.budget_frac).toFixed(1)}x better than random), with a median
         lead of ${Math.round(s.median_lead)} years, including the Washington Bridge every year from 2018 on.</p></div>
@@ -627,6 +637,31 @@ function renderMethod() {
     </div>`;
 }
 
+/* ============ jurisdictions ============ */
+async function switchJur(st) {
+  if (st === state.jur) return;
+  $('#docket-list').innerHTML = '<div class="bootload mono">READING THE ' + st + ' FEDERAL RECORD…' +
+    '<div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
+  const [assets, summary, events] = await Promise.all(
+    [`assets_${st}.json`, `summary_${st}.json`, `events_${st}.json`]
+      .map(f => fetch('data/' + f).then(r => r.json())));
+  state.jur = st;
+  Object.assign(state, { assets, summary, events });
+  state.bandFilter = 'priority'; state.query = '';
+  state.sortKey = 'rank'; state.sortAsc = true;
+  renderChrome();
+  renderDocketTools();
+  renderDocketTable();
+  rebuildMarkers();
+}
+function renderJurChips() {
+  const el = $('#jur-chips');
+  if (!el || !state.summary) return;
+  el.innerHTML = state.summary.states.map(st =>
+    `<button class="jurchip mono ${st === state.jur ? 'active' : ''}" data-st="${st}">${st}</button>`).join('');
+  el.querySelectorAll('.jurchip').forEach(b => b.onclick = () => switchJur(b.dataset.st));
+}
+
 /* ============ the world: global record ============ */
 let __worldMap = null;
 function renderWorld() {
@@ -663,7 +698,7 @@ function initWorldMap() {
   });
   L.circleMarker([41.68, -71.5], { radius: 9, color: '#FAF8F4', weight: 1.5,
     fillColor: '#3A5CA8', fillOpacity: 0.95 }).addTo(__worldMap)
-    .bindPopup('<b>Rhode Island</b><br>the live pilot: 965 structures under audit<br><a href="#docket">open the docket</a>');
+    .bindPopup('<b>The pilot fleet</b><br>RI, VT, NH, DE: 9,546 structures under audit<br><a href="#docket">open the docket</a>');
   $('#world-legend').innerHTML =
     '<div><i style="background:#B23348"></i>DOCUMENTED COLLAPSE</div>' +
     '<div><i style="background:#3A5CA8"></i>LIVE PILOT (THE DOCKET)</div>';
@@ -691,9 +726,9 @@ $('#print-btn').onclick = () => window.print();
 async function boot() {
   try {
     const [assets, summary, events, morandi, world] = await Promise.all(
-      ['assets.json', 'summary.json', 'events.json', 'morandi.json', 'global.json']
+      ['assets_RI.json', 'summary_RI.json', 'events_RI.json', 'morandi.json', 'global.json']
         .map(f => fetch('data/' + f).then(r => r.json())));
-    Object.assign(state, { assets, summary, events, morandi, world });
+    Object.assign(state, { assets, summary, events, morandi, world, eventsRI: events });
   } catch (e) {
     $('#docket-list').innerHTML = '<div class="empty-state">FAILED TO LOAD THE FEDERAL RECORD — RELOAD THE CONSOLE.</div>';
     return;

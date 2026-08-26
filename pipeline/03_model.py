@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""DISSENT core: the Blind Re-Inspector, dissent scoring, and site exports.
+"""DISSENT core, four-state edition: the Blind Re-Inspector, dissent scoring,
+and per-jurisdiction site exports.
 
-Trains a physics-only condition-rating model (never shown any inspector
-opinion), wraps it in split-conformal intervals, scores STATE dissent
-(record minus physics upper bound) and TREND dissent (Bayesian online
-changepoint detection on the record-vs-physics residual trajectory), fuses
-them, validates against held-out 2019+ proxy events, and exports JSON
-artifacts for the deployed docket.
+Trains one physics-only condition-rating model pooled across RI, VT, NH and
+DE (never shown any inspector opinion), wraps it in split-conformal
+intervals, scores STATE / TREND / CONDITION dissent per asset per year in a
+single sequential pass (BOCPD prefix values are exact per-year values),
+validates against the pooled 2019+ proxy events, and exports one artifact
+set per state for the deployed console.
 """
+import bisect
 import json
 import math
 import os
+import shutil
 import numpy as np
 import pandas as pd
 from scipy.special import gammaln
@@ -25,11 +28,15 @@ MATERIAL_LABEL = {1: 'Concrete', 2: 'Concrete continuous', 3: 'Steel',
                   4: 'Steel continuous', 5: 'Prestressed concrete',
                   6: 'Prestressed continuous', 7: 'Wood', 8: 'Masonry',
                   9: 'Aluminum / iron', 0: 'Other', -1: 'Unknown'}
+STATES = ['RI', 'VT', 'NH', 'DE']
+STATE_NAME = {'RI': 'Rhode Island', 'VT': 'Vermont',
+              'NH': 'New Hampshire', 'DE': 'Delaware'}
 
-TRAIN_END = 2015          # model sees nothing after this
-CALIB_END = 2018          # conformal calibration window 2016-2018
-BUDGET_FRAC = 0.15        # alert budget for event-recall validation
-INSPECT_NOW, SCHEDULE, WATCH = 12, 24, 48   # docket bands (quarterly capacity)
+TRAIN_END = 2015
+CALIB_END = 2018
+BUDGET_FRAC = 0.15
+INSPECT_NOW, SCHEDULE, WATCH = 12, 24, 48
+NEWBUILD_YEARS = 5
 
 panel = pd.read_parquet(os.path.join(PROC, 'panel.parquet'))
 events = pd.read_parquet(os.path.join(PROC, 'events.parquet'))
@@ -102,8 +109,7 @@ model = HistGradientBoostingRegressor(max_depth=6, max_iter=350,
                                       learning_rate=0.06, random_state=11)
 model.fit(X[tr], y[tr])
 df['pred'] = model.predict(X)
-resid_cal = (y[ca] - df.loc[ca, 'pred']).abs()
-Q90 = float(np.quantile(resid_cal, 0.90))
+Q90 = float(np.quantile((y[ca] - df.loc[ca, 'pred']).abs(), 0.90))
 df['upper'] = df['pred'] + Q90
 df['lower'] = df['pred'] - Q90
 df['resid'] = y - df['pred']
@@ -111,18 +117,14 @@ df['resid'] = y - df['pred']
 mae_te = float((y[te] - df.loc[te, 'pred']).abs().mean())
 cov_te = float(((y[te] >= df.loc[te, 'lower']) &
                 (y[te] <= df.loc[te, 'upper'])).mean())
-print(f'train rows {tr.sum()}, calib {ca.sum()}, test {te.sum()}')
-print(f'conformal q90 = {Q90:.2f} rating steps')
-print(f'2019+ MAE = {mae_te:.2f}, interval coverage = {cov_te:.1%}')
+print(f'pooled: train {tr.sum()} calib {ca.sum()} test {te.sum()} '
+      f'| q90 {Q90:.2f} | 2019+ MAE {mae_te:.2f} | coverage {cov_te:.1%}')
 
 # ---------------------------------------------------------------- BOCPD
 def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
-    """Adams-MacKay BOCPD with a Normal-Inverse-Gamma conjugate model
-    (unknown mean AND unknown variance), Student-t predictive.
-
-    Variance is learned online per run length, never from the full series,
-    so a genuine level shift IS surprising when it arrives.
-    Returns the per-step posterior probability of run length zero."""
+    """Adams-MacKay BOCPD, Normal-Inverse-Gamma, broad-prior changepoint
+    emission. cps[i] uses only series[:i+1], so one pass gives the exact
+    per-year value for every prefix."""
     s = np.asarray(series, dtype=float)
     n = len(s)
     if n < 4:
@@ -145,8 +147,6 @@ def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
                 0.5 * np.log(np.pi * df_ * sc2) -
                 (df_ + 1) / 2 * np.log1p(z2 / df_))
 
-    # the changepoint path emits under a BROAD new-segment prior: a fresh
-    # regime can sit anywhere within a few baseline scales of where we are
     wide_b = a0 * (4.0 * sigma0) ** 2
     for x in s:
         like = np.exp(np.clip(t_logpdf(x, mu, k, a, b), -60, 60))
@@ -155,8 +155,7 @@ def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
                                     np.array([0.3]), np.array([a0]),
                                     np.array([wide_b]))[0], -60))
         growth = R * like * (1 - hazard)
-        cp = hazard * pi0
-        R = np.concatenate([[cp], growth])
+        R = np.concatenate([[hazard * pi0], growth])
         R /= max(R.sum(), 1e-300)
         cps.append(float(R[0]))
         b = np.concatenate([[b0], b + k * (x - mu) ** 2 / (2 * (k + 1))])
@@ -165,208 +164,210 @@ def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
         a = np.concatenate([[a0], a + 0.5])
     return cps
 
-# ---------------------------------------------------------------- dissent
-def dissent_at(g, upto_year):
-    """STATE, TREND, CONDITION and priority using only obs <= upto_year."""
-    h = g[g['year'] <= upto_year]
-    if not len(h):
-        return None
-    last = h.iloc[-1]
-    state = max(0.0, float(last['rating'] - last['upper']))
-    cps = bocpd_change_prob(h['resid'].values)
-    recent_cp = max(cps[-3:]) if len(cps) >= 3 else (cps[-1] if cps else 0)
-    drift = float(h['resid'].tail(3).mean() - h['resid'].head(
-        max(len(h) - 3, 1)).mean()) if len(h) > 4 else 0.0
-    trend = recent_cp * max(0.0, drift)
-    cond = max(0.0, 5.0 - float(last['pred'])) / 5.0
-    return dict(state=state, trend=trend, cp=recent_cp, cond=cond,
-                rating=float(last['rating']), pred=float(last['pred']),
-                upper=float(last['upper']), lower=float(last['lower']),
-                year=int(last['year']))
-
-def priority_of(d):
-    """Docket priority: contradiction + trajectory + physics-severity.
-    The condition term is the I-35W clause: an asset both witnesses agree is
-    bad still climbs the ladder."""
-    return (0.45 * min(d['state'], 3.0) / 3.0 +
-            0.25 * min(d['trend'], 2.0) / 2.0 +
-            0.30 * d['cond'])
+# --------------------------------------------------- one pass per asset
+def priority_terms(state, trend, cond):
+    return (0.45 * min(state, 3.0) / 3.0,
+            0.25 * min(trend, 2.0) / 2.0,
+            0.30 * cond)
 
 df = df.sort_values(['sid', 'year'])
-groups = {sid: g for sid, g in df.groupby('sid')}
+P = {}
+for sid, g in df.groupby('sid'):
+    resid = g['resid'].values
+    cps = bocpd_change_prob(resid)
+    years = g['year'].tolist()
+    rows = []
+    for i in range(len(g)):
+        r = g.iloc[i]
+        state_d = max(0.0, float(r['rating'] - r['upper']))
+        recent_cp = max(cps[max(0, i - 2):i + 1]) if i >= 2 else (cps[i] if cps else 0)
+        if i > 3:
+            drift = float(np.mean(resid[max(0, i - 2):i + 1]) -
+                          np.mean(resid[:max(i - 2, 1)]))
+        else:
+            drift = 0.0
+        trend_d = recent_cp * max(0.0, drift)
+        cond_d = max(0.0, 5.0 - float(r['pred'])) / 5.0
+        t = priority_terms(state_d, trend_d, cond_d)
+        rows.append(dict(state=state_d, trend=trend_d, cond=cond_d,
+                         cp=recent_cp, prio=sum(t), terms=t))
+    P[sid] = dict(years=years, rows=rows, cps=cps, g=g)
+print(f'scored {len(P)} assets in one pass each')
 
-def normalize(vals):
-    v = np.asarray(vals, dtype=float)
-    hi = np.quantile(v, 0.98) if len(v) else 1.0
-    return v / max(hi, 1e-9)
+def at_or_before(sid, year):
+    p = P.get(sid)
+    if not p:
+        return None
+    i = bisect.bisect_right(p['years'], year) - 1
+    return None if i < 0 else (i, p['rows'][i])
 
-# ---- held-out event validation (2019+ events, model frozen at 2015) ----
-ev_test = events[(events['year'] >= 2019)]
+# ------------------------------------------------- pooled event validation
+ev_test = events[events['year'] >= 2019]
+ranking_cache = {}
+def top_set(ref_year):
+    if ref_year not in ranking_cache:
+        scores = {}
+        for sid in P:
+            hit = at_or_before(sid, ref_year)
+            if hit:
+                scores[sid] = hit[1]['prio']
+        ranked = sorted(scores, key=lambda s: -scores[s])
+        ranking_cache[ref_year] = set(ranked[:max(1, int(len(ranked) * BUDGET_FRAC))])
+    return ranking_cache[ref_year]
+
 flagged, leads, ev_rows = 0, [], []
 for _, e in ev_test.iterrows():
-    ref_year = int(e['prev_year'])
-    scores = {}
-    for sid, g in groups.items():
-        d = dissent_at(g, ref_year)
-        if d:
-            scores[sid] = priority_of(d)
-    if e['sid'] not in scores:
+    if e['sid'] not in P:
         continue
-    ranked = sorted(scores.items(), key=lambda kv: -kv[1])
-    cutoff = max(1, int(len(ranked) * BUDGET_FRAC))
-    top = {sid for sid, _ in ranked[:cutoff]}
-    hit = e['sid'] in top
+    ref = int(e['prev_year'])
+    hit = e['sid'] in top_set(ref)
     flagged += hit
     lead = None
     if hit:
-        for back in range(0, 6):
-            yy = ref_year - back
-            d = dissent_at(groups[e['sid']], yy)
-            if d is None:
-                break
-            s_all = {sid: priority_of(dd)
-                     for sid, dd in ((s2, dissent_at(g2, yy))
-                                     for s2, g2 in groups.items()) if dd}
-            rk = sorted(s_all.items(), key=lambda kv: -kv[1])
-            tp = {sid for sid, _ in rk[:max(1, int(len(rk) * BUDGET_FRAC))]}
-            if e['sid'] in tp:
+        for back in range(0, 8):
+            yy = ref - back
+            if e['sid'] in top_set(yy):
                 lead = int(e['year']) - yy
             else:
                 break
         if lead:
             leads.append(lead)
-    print(f"  event {e['sid'][-6:]} {e['kind']} {e['from_rating']}->"
-          f"{e['to_rating']} in {e['year']}: "
-          f"{'FLAGGED lead ' + str(lead) if hit else 'missed'}")
-    ev_rows.append(dict(sid=e['sid'], year=int(e['year']),
-                        kind=e['kind'], from_rating=int(e['from_rating']),
+    ev_rows.append(dict(sid=e['sid'].split(':', 1)[1].lstrip('0') or e['sid'],
+                        state=e['sid'].split(':', 1)[0],
+                        year=int(e['year']), kind=e['kind'],
+                        from_rating=int(e['from_rating']),
                         to_rating=int(e['to_rating']), flagged=bool(hit),
                         lead_years=lead))
 recall = flagged / max(len(ev_rows), 1)
-print(f'held-out events 2019+: {len(ev_rows)}, flagged early: {flagged} '
-      f'({recall:.0%}) within top {BUDGET_FRAC:.0%} budget; '
+print(f'held-out events 2019+ (pooled): {len(ev_rows)}, flagged early '
+      f'{flagged} ({recall:.0%}) in top {BUDGET_FRAC:.0%}; '
       f'median lead {np.median(leads) if leads else 0:.0f} yrs')
 
-# ---------------------------------------------------------------- docket
+# ---------------------------------------------------------------- exports
 latest_year = int(df['year'].max())
-docket = []
-for sid, g in groups.items():
-    d = dissent_at(g, latest_year)
-    if d is None:
-        continue
-    last_row = g.iloc[-1]
-    if bool(panel[(panel.sid == sid)].sort_values('year').iloc[-1]['closed']):
-        continue
-    docket.append((sid, d, last_row))
-
-state_n = normalize([d['state'] for _, d, _ in docket])
-trend_n = normalize([min(d['trend'], 2.0) for _, d, _ in docket])
-cond_n = np.array([d['cond'] for _, d, _ in docket])
-fused = np.array([priority_of(d) for _, d, _ in docket])
-# The physics witness abstains on structures younger than five years: their
-# age features sit outside the training support, so they rank last with no
-# band and carry an explicit abstention flag instead of a verdict.
-newbuild = np.array([
-    (not pd.isna(last['built'])) and (latest_year - last['built'] <= 5)
-    for _, _, last in docket])
-fused_rank = np.where(newbuild, -1.0, fused)
-order = np.argsort(-fused_rank)
-
-def clean(s):
-    return str(s).strip().strip("'").strip()
+X_med = X.median()
 
 def attributions(row):
     x = row[FEATS].astype(float).to_frame().T
     base = float(model.predict(x)[0])
     out = []
-    med = X.median()
     for f in FEATS:
         x2 = x.copy()
-        x2[f] = med[f]
+        x2[f] = X_med[f]
         delta = base - float(model.predict(x2)[0])
         if abs(delta) > 0.02:
             out.append((FEAT_LABELS[f], round(delta, 2)))
     out.sort(key=lambda t: -abs(t[1]))
     return out[:5]
 
-assets_out = []
-for rank_pos, idx in enumerate(order):
-    sid, d, last = docket[idx]
-    g = groups[sid]
-    band = ('clear' if newbuild[idx] else
-            'inspect' if rank_pos < INSPECT_NOW else
-            'schedule' if rank_pos < INSPECT_NOW + SCHEDULE else
-            'watch' if rank_pos < INSPECT_NOW + SCHEDULE + WATCH else 'clear')
-    traj = [[int(r.year), None if math.isnan(r.rating) else int(r.rating),
-             round(float(r.pred), 2)] for r in g.itertuples()]
-    cps = bocpd_change_prob(g['resid'].values)
-    attr = attributions(g.iloc[-1]) if band != 'clear' else []
-    assets_out.append(dict(
-        sid=sid.lstrip('0') or sid, rank=rank_pos + 1, band=band,
-        carries=clean(last['carries']), crosses=clean(last['crosses']),
-        location=clean(last['location']),
-        lat=None if pd.isna(last['lat']) else round(float(last['lat']), 5),
-        lon=None if pd.isna(last['lon']) else round(float(last['lon']), 5),
-        built=None if pd.isna(last['built']) else int(last['built']),
-        adt=None if pd.isna(last['adt']) else int(last['adt']),
-        material=MATERIAL_LABEL.get(int(last['material'])
-                                    if not pd.isna(last['material']) else -1,
-                                    'Unknown'),
-        recorded=int(d['rating']), pred=round(d['pred'], 2),
-        lower=round(d['lower'], 2), upper=round(d['upper'], 2),
-        cond=round(float(cond_n[idx]), 3),
-        state=round(float(state_n[idx]), 3),
-        pr_state=round(0.45 * min(d['state'], 3.0) / 3.0, 3),
-        pr_trend=round(0.25 * min(d['trend'], 2.0) / 2.0, 3),
-        pr_cond=round(0.30 * d['cond'], 3),
-        trend=round(float(trend_n[idx]), 3),
-        fused=round(float(fused[idx]), 3), cp=round(d['cp'], 3),
-        newbuild=bool(newbuild[idx]),
-        traj=traj, cps=[round(c, 3) for c in cps], attr=attr))
+def clean(s):
+    return str(s).strip().strip("'").strip()
 
-# ---------------------------------------------------------------- exports
-wb_sid = '000000000007000'
-wb_g = groups.get(wb_sid)
-wb_out = None
-if wb_g is not None:
-    wb_d = {}
-    for yy in range(2015, 2024):
-        d = dissent_at(wb_g, yy)
-        if d:
-            wb_d[yy] = dict(state=round(d['state'], 2),
-                            trend=round(d['trend'], 3),
-                            pred=round(d['pred'], 2), upper=round(d['upper'], 2),
-                            recorded=int(d['rating']))
-    wb_out = dict(sid=wb_sid.lstrip('0'),
-                  traj=[[int(r.year), None if math.isnan(r.rating)
-                         else int(r.rating), round(float(r.pred), 2)]
-                        for r in wb_g.itertuples()],
-                  cps=[round(c, 3) for c in
-                       bocpd_change_prob(wb_g['resid'].values)],
-                  dissent_by_year=wb_d)
-
-json.dump(assets_out, open(os.path.join(SITE, 'assets.json'), 'w'))
-json.dump(dict(
-    generated='2026-08-26', state='Rhode Island',
-    latest_year=latest_year, n_assets=len(assets_out),
-    n_records=int(len(df)), years=[int(df.year.min()), int(df.year.max())],
-    n_poor=int((df[df.year == latest_year]['rating'] <= 4).sum()),
+pooled = dict(
+    generated='2026-08-26', latest_year=latest_year,
     train_end=TRAIN_END, calib='2016-2018', q90=round(Q90, 2),
     mae_test=round(mae_te, 2), coverage=round(cov_te, 3),
-    n_newbuild=int(newbuild.sum()),
+    n_records=int(len(df)), n_structures=int(df.sid.nunique()),
+    years=[int(df.year.min()), int(df.year.max())],
     n_events_total=int(len(events)), n_events_test=len(ev_rows),
     event_recall=round(recall, 3),
     median_lead=float(np.median(leads)) if leads else 0,
-    budget_frac=BUDGET_FRAC,
-    bands=dict(inspect=INSPECT_NOW, schedule=SCHEDULE, watch=WATCH),
-), open(os.path.join(SITE, 'summary.json'), 'w'))
-json.dump(dict(events=ev_rows, washington=wb_out),
-          open(os.path.join(SITE, 'events.json'), 'w'))
+    budget_frac=BUDGET_FRAC, states=STATES, state_names=STATE_NAME,
+    bands=dict(inspect=INSPECT_NOW, schedule=SCHEDULE, watch=WATCH))
 
-# Morandi replay series: published record, Milillo et al. 2019 (contested by
-# Lanari et al. 2020) — LOS velocity ~10 mm/yr, 7x acceleration 12 Mar 2017.
+for ST in STATES:
+    sids = [s for s in P if s.startswith(ST + ':')]
+    docket = []
+    latest_closed = panel.sort_values('year').groupby('sid').tail(1).set_index('sid')['closed']
+    for sid in sids:
+        g = P[sid]['g']
+        last = g.iloc[-1]
+        if bool(latest_closed.get(sid, False)):
+            continue
+        docket.append((sid, len(P[sid]['rows']) - 1, last))
+    newbuild = np.array([
+        (not pd.isna(last['built'])) and
+        (latest_year - last['built'] <= NEWBUILD_YEARS)
+        for _, _, last in docket])
+    prio = np.array([P[sid]['rows'][i]['prio'] for sid, i, _ in docket])
+    order = np.argsort(-np.where(newbuild, -1.0, prio))
+    assets_out = []
+    for rank_pos, idx in enumerate(order):
+        sid, i, last = docket[idx]
+        row = P[sid]['rows'][i]
+        g = P[sid]['g']
+        band = ('clear' if newbuild[idx] else
+                'inspect' if rank_pos < INSPECT_NOW else
+                'schedule' if rank_pos < INSPECT_NOW + SCHEDULE else
+                'watch' if rank_pos < INSPECT_NOW + SCHEDULE + WATCH else 'clear')
+        traj = [[int(r.year), None if math.isnan(r.rating) else int(r.rating),
+                 round(float(r.pred), 2)] for r in g.itertuples()]
+        attr = attributions(g.iloc[-1]) if band != 'clear' else []
+        t = row['terms']
+        assets_out.append(dict(
+            sid=sid.split(':', 1)[1].lstrip('0') or sid,
+            rank=rank_pos + 1, band=band,
+            carries=clean(last['carries']), crosses=clean(last['crosses']),
+            location=clean(last['location']),
+            lat=None if pd.isna(last['lat']) else round(float(last['lat']), 5),
+            lon=None if pd.isna(last['lon']) else round(float(last['lon']), 5),
+            built=None if pd.isna(last['built']) else int(last['built']),
+            adt=None if pd.isna(last['adt']) else int(last['adt']),
+            material=MATERIAL_LABEL.get(
+                int(last['material']) if not pd.isna(last['material']) else -1,
+                'Unknown'),
+            recorded=int(last['rating']), pred=round(float(last['pred']), 2),
+            lower=round(float(last['lower']), 2),
+            upper=round(float(last['upper']), 2),
+            cond=round(row['cond'], 3), state=round(row['state'], 3),
+            trend=round(row['trend'], 3), cp=round(row['cp'], 3),
+            pr_state=round(t[0], 3), pr_trend=round(t[1], 3),
+            pr_cond=round(t[2], 3), fused=round(row['prio'], 3),
+            newbuild=bool(newbuild[idx]),
+            traj=traj, cps=[round(c, 3) for c in P[sid]['cps']], attr=attr))
+    summary = dict(pooled)
+    summary.update(state=ST, state_name=STATE_NAME[ST],
+                   n_assets=len(assets_out),
+                   n_poor=int(sum(1 for a in assets_out if a['recorded'] <= 4)),
+                   n_newbuild=int(newbuild.sum()))
+    json.dump(assets_out, open(os.path.join(SITE, f'assets_{ST}.json'), 'w'))
+    json.dump(summary, open(os.path.join(SITE, f'summary_{ST}.json'), 'w'))
+    json.dump(dict(events=[e for e in ev_rows if e['state'] == ST]),
+              open(os.path.join(SITE, f'events_{ST}.json'), 'w'))
+    print(f'{ST}: {len(assets_out)} assets, {summary["n_poor"]} poor, '
+          f'{summary["n_newbuild"]} abstained')
+
+# Washington Bridge exhibit (RI)
+wb_sid = 'RI:000000000007000'
+if wb_sid in P:
+    g = P[wb_sid]['g']
+    wb_d = {}
+    for yy in range(2015, 2024):
+        hit = at_or_before(wb_sid, yy)
+        if hit:
+            i, row = hit
+            r = g.iloc[i]
+            wb_d[yy] = dict(state=round(row['state'], 2),
+                            trend=round(row['trend'], 3),
+                            pred=round(float(r['pred']), 2),
+                            upper=round(float(r['upper']), 2),
+                            recorded=int(r['rating']))
+    wb_out = dict(sid='7000',
+                  traj=[[int(r.year), None if math.isnan(r.rating)
+                         else int(r.rating), round(float(r.pred), 2)]
+                        for r in g.itertuples()],
+                  cps=[round(c, 3) for c in P[wb_sid]['cps']],
+                  dissent_by_year=wb_d)
+    json.dump(dict(events=[e for e in ev_rows if e['state'] == 'RI'],
+                   washington=wb_out),
+              open(os.path.join(SITE, 'events_RI.json'), 'w'))
+
+for legacy, src in [('assets.json', 'assets_RI.json'),
+                    ('summary.json', 'summary_RI.json'),
+                    ('events.json', 'events_RI.json')]:
+    shutil.copyfile(os.path.join(SITE, src), os.path.join(SITE, legacy))
+
 mor = []
-v = 10.0
 t = 2015.0
 disp = 0.0
 while t <= 2018.62:
@@ -377,9 +378,4 @@ while t <= 2018.62:
     t += 1 / 12
 json.dump(dict(series=mor, breakpoint=2017.19, collapse=2018.62),
           open(os.path.join(SITE, 'morandi.json'), 'w'))
-
-print(f'exported {len(assets_out)} assets; '
-      f'docket bands: {INSPECT_NOW}/{SCHEDULE}/{WATCH}')
-if wb_out:
-    print('washington bridge dissent by year:',
-          json.dumps(wb_out['dissent_by_year'], indent=0)[:400])
+print('done')
