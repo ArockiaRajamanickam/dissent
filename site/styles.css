@@ -97,7 +97,7 @@ main { flex: 1; min-height: 0; position: relative; }
 .panelbar {
   flex: none; display: flex; align-items: center; justify-content: space-between;
   background: var(--navy); color: var(--chrome-txt); font-size: 10.5px; letter-spacing: 0.5px;
-  padding: 8px 14px; border-bottom: 2px solid var(--crimson);
+  padding: 8px 14px; border-bottom: 1px solid var(--hairline);
 }
 .panelbtn {
   background: transparent; color: var(--chrome-dim); border: 1px solid var(--hairline);
@@ -125,7 +125,7 @@ main { flex: 1; min-height: 0; position: relative; }
 }
 .paper {
   max-width: 1020px; margin: 0 auto 46px; background: var(--cream);
-  border: 1px solid #0B1129; border-top: 4px solid var(--crimson);
+  border: 1px solid #0B1129;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.4);
   padding: 30px 36px 36px;
 }
@@ -156,7 +156,7 @@ table.docket th {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
   text-align: left; padding: 8px 9px; position: sticky; top: 0; z-index: 5;
 }
-table.docket th:first-child { border-left: 3px solid var(--crimson); }
+
 th.sortable { cursor: pointer; user-select: none; transition: background 140ms var(--ease); }
 th.sortable:hover { background: var(--navy-mid); }
 table.docket td {
@@ -231,10 +231,11 @@ tr.row:hover .open-hint { opacity: 1; }
 }
 .doc-head .mono { font-size: 10px; color: var(--grey); letter-spacing: 0.5px; line-height: 1.8; }
 .stamp {
-  font-family: 'Courier Prime', monospace; font-weight: 500; font-size: 13px;
+  font-family: 'Courier Prime', monospace; font-weight: 700; font-size: 13px;
   color: var(--crimson); border: 2.5px solid var(--crimson); padding: 6px 12px;
-  letter-spacing: 1.5px; transform: rotate(-7deg); flex: none; margin-top: 4px;
-  opacity: 0.88;
+  letter-spacing: 1.5px; transform: rotate(var(--tilt, -5deg)); flex: none;
+  margin-top: 10px; margin-bottom: -8px; opacity: var(--ink, 0.85);
+  border-radius: 3px 5px 2px 4px;
 }
 .dossier .close {
   float: right; cursor: pointer; font-family: 'Courier Prime', monospace; font-size: 10.5px;
@@ -266,17 +267,19 @@ tr.row:hover .open-hint { opacity: 1; }
 /* ================= charts & cards on paper ================= */
 svg.chart { width: 100%; height: auto; display: block; background: var(--paper); border: 1px solid var(--line); }
 .figbar { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  font-family: 'Courier Prime', monospace; font-size: 10px; color: var(--grey);
+  font-size: 10px; color: var(--grey);
   border: 1px solid var(--line); border-top: none; background: var(--paper);
   padding: 7px 12px; margin-bottom: 12px; }
+.figbar > span:last-child { font-family: 'Source Serif 4', serif; font-style: italic;
+  font-size: 12px; text-transform: none; letter-spacing: 0; }
+.figbar .legend { font-family: 'Courier Prime', monospace; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 13px; height: 3px; vertical-align: middle; margin-right: 5px; }
 .card { background: var(--paper); border: 1px solid var(--line); padding: 16px 18px; margin: 12px 0; }
 .card h4 { font-family: 'Courier Prime', monospace; font-size: 10.5px; text-transform: uppercase;
   color: var(--navy); letter-spacing: 0.5px; margin-bottom: 8px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.feature-banner { background: var(--navy); color: #fff; padding: 22px 26px; margin: 14px 0;
-  border-left: 5px solid var(--crimson); }
+.feature-banner { background: var(--navy); color: #fff; padding: 22px 26px; margin: 14px 0; }
 .feature-banner h3 { color: #fff; font-size: 24px; margin-bottom: 6px; }
 .feature-banner .mono { color: var(--chrome-txt); font-size: 10.5px; }
 .big-lead { font-family: 'Fraunces', serif; font-weight: 900; font-size: 40px; color: var(--crimson-lt); }
@@ -312,7 +315,7 @@ svg.chart { width: 100%; height: auto; display: block; background: var(--paper);
 /* toast: the machine files paper */
 .toast {
   position: fixed; right: 20px; bottom: 46px; z-index: 90;
-  background: var(--cream); color: var(--ink); border-left: 4px solid var(--crimson);
+  background: var(--cream); color: var(--ink); border-left: 4px solid var(--navy);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); padding: 12px 18px; font-size: 11px;
   letter-spacing: 0.3px; transform: translateY(0); opacity: 1;
   transition: transform 220ms var(--ease), opacity 220ms var(--ease);
@@ -323,7 +326,7 @@ svg.chart { width: 100%; height: auto; display: block; background: var(--paper);
 .leaflet-container { font-family: 'Source Serif 4', serif; background: var(--desk); }
 .leaflet-bar a { background: var(--navy); color: var(--chrome-txt); border-bottom: 1px solid var(--hairline); border-radius: 0 !important; }
 .leaflet-bar a:hover { background: var(--navy-mid); color: #fff; }
-.leaflet-popup-content-wrapper { border-radius: 0; border-top: 3px solid var(--crimson); background: var(--cream); }
+.leaflet-popup-content-wrapper { border-radius: 0; border-top: 2px solid var(--navy); background: var(--cream); }
 .leaflet-popup-content { font-size: 12px; line-height: 1.5; margin: 10px 14px; }
 .pop-band { font-family: 'Courier Prime', monospace; font-size: 9px; color: #fff; padding: 1px 6px; }
 .leaflet-control-attribution { background: rgba(15, 23, 56, 0.8) !important; color: var(--chrome-dim) !important; font-size: 9px !important; }
@@ -373,10 +376,13 @@ svg.chart { width: 100%; height: auto; display: block; background: var(--paper);
 .attr li { border-bottom: 1px dotted #C9C3B2; }
 .verdict p { font-style: italic; }
 .feature-banner h3, .dossier h3 { font-weight: 900; }
-.stamp { border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--crimson); }
+.stamp { box-shadow: inset 0 0 0 1.5px var(--crimson); }
 .paper p, .dossier p, .card p { font-size: 15px; line-height: 1.62; }
 .paper p b, .dossier p b { font-weight: 600; }
 table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font-size: 13.5px; }
 .kpis { font-size: 10.5px; letter-spacing: 0.2px; }
 .statusbar { font-size: 10.5px; }
 .chip, .panelbtn, .btn { font-size: 11px; }
+
+.method-seal { float: right; width: 108px; height: 108px; margin: 0 0 10px 16px; opacity: 0.9; }
+@media (max-width: 920px) { .method-seal { float: none; margin: 6px 0; } }

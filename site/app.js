@@ -197,7 +197,7 @@ function renderDocketTools() {
       ${['priority', 'inspect', 'schedule', 'watch', 'all'].map(b =>
         `<button class="chip ${state.bandFilter === b ? 'active' : ''}" data-band="${b}">` +
         `${b === 'priority' ? 'DOCKET' : b === 'all' ? 'ALL' : BAND_LABEL[b]} <span class="n">${counts[b]}</span></button>`).join('')}
-      <input class="search" id="docket-search" placeholder="look up a structure…" value="${state.query}">
+      <input class="search" id="docket-search" placeholder="search 965 structures" value="${state.query}">
       <span class="result-count" id="result-count"></span>
     </div>`;
   document.querySelectorAll('#docket-tools .chip').forEach(c => c.onclick = () => {
@@ -293,12 +293,12 @@ function openDossier(sid) {
         <p class="where">over ${a.crosses || '—'}${a.location ? ', ' + a.location : ''}
         <span class="mono">| ${a.material}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
       </div>
-      <div class="stamp">${stampText}</div>
+      <div class="stamp" style="--tilt:${-(2.5 + (parseInt(a.sid, 10) || 7) % 9 * 0.55).toFixed(1)}deg;--ink:${(0.78 + ((parseInt(a.sid, 10) || 3) % 5) * 0.04).toFixed(2)}">${stampText}</div>
     </div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
     ${trajChart(a.traj, a.cps)}
     ${figbar(LEG.record + LEG.physics + LEG.bandc + LEG.cp,
-             'FHWA NBI 1992-2025 | BOCPD ON RECORD-VS-PHYSICS RESIDUAL')}
+             'From the federal record, 1992-2025; red bars are the changepoint detector on the record-vs-physics residual.')}
     <div class="dgrid">
       <div class="dcol"><h4>Why physics disagrees (top evidence)</h4>
         <ul class="attr">${(a.attr && a.attr.length ? a.attr : [['no strong single driver', 0]]).map(([f, d]) =>
@@ -411,13 +411,13 @@ function renderWashington() {
   v.innerHTML = `
     <div class="feature-banner">
       <p class="mono">STRUCTURE ${w.sid} | PROVIDENCE, RHODE ISLAND | EMERGENCY CLOSURE 11 DEC 2023</p>
-      <h3>The record said 4, year after year. The model said: look here.</h3>
+      <h3>Rated 4, unchanged, from 2019 to 2023.</h3>
       <p>With training frozen at 2015 and no knowledge of what came after, DISSENT placed this bridge inside its
       top-15% alert budget every year from 2018 on: <span class="big-lead">5 years</span> before the December 2023
-      emergency closure, six before the federal record finally caught up in 2024.</p>
+      emergency closure, 6 years before the federal record caught up in 2024.</p>
     </div>
     ${trajChart(w.traj, w.cps, { markers: [{ year: 2023.95, label: 'emergency closure' }] })}
-    ${figbar(LEG.record + LEG.physics + LEG.cp, 'FHWA NBI RECORD FOR STRUCTURE ' + w.sid)}
+    ${figbar(LEG.record + LEG.physics + LEG.cp, 'The federal record for structure ' + w.sid + ', as filed.')}
     <div class="two">
       <div class="card"><h4>What the record claimed</h4>
         <p>Condition rating <b>4 (poor), unchanged from 2019 through 2023</b>. Open to roughly 90,000 vehicles a day.
@@ -428,7 +428,7 @@ function renderWashington() {
         ${years.map(y => `<li>${y}: physics ${dy[y].pred.toFixed(1)} vs record ${dy[y].recorded}
           <b>${dy[y].state > 0 ? 'state dissent ' + dy[y].state.toFixed(1) : 'in-band, severity-driven'}</b></li>`).join('')}
         </ul>
-        <p class="note">A structure this old, this loaded, this exposed does not hold a flat 4 for five years.
+        <p class="note">Ninety thousand vehicles a day crossed a structure whose rating never moved for five years.
         The physics-severity channel (the I-35W clause) kept its docket priority high while the record never moved.</p></div>
     </div>
     <p class="note">Everything above is computed from the public FHWA record with the model trained only on data
@@ -440,18 +440,18 @@ function renderWashington() {
 function renderMorandi() {
   const v = $('#paper-morandi');
   v.innerHTML = `
-    <h2>Seventeen months of warning, replayed</h2>
+    <h2>The Morandi precursor, month by month</h2>
     <p>On 14 August 2018 the Morandi Bridge in Genoa collapsed, killing 43. Satellite radar analysis published
     afterwards (Milillo et al. 2019) found that a scatterer on the deck beside the failed pier had accelerated
-    from about 10 to 70 mm/yr starting 12 March 2017, seventeen months before collapse. Press Run detector:
+    from about 10 to 70 mm/yr starting 12 March 2017, seventeen months before collapse. Press RUN THE DETECTOR:
     the same Bayesian online changepoint detector that powers DISSENT's trend channel runs <b>live in your
     browser</b> over that published series, month by month, knowing nothing of what comes next.</p>
     <div id="morandi-chart"></div>
     ${figbar('<span><i style="background:#3A5CA8"></i>LOS velocity (mm/yr), drawn from the published record</span>' + LEG.cp,
-             'MILILLO ET AL. 2019 | CONTESTED BY LANARI ET AL. 2020')}
+             'After Milillo et al. 2019; the finding is contested by Lanari et al. 2020.')}
     <div class="ctrlbar">
       <button class="btn" id="morandi-play">RUN THE DETECTOR</button>
-      <button class="btn secondary" id="morandi-reset">WIND IT BACK</button>
+      <button class="btn secondary" id="morandi-reset">RESET</button>
       <span class="ctrl-status" id="morandi-status">DETECTOR IDLE</span>
     </div>
     <p class="note">Honesty note: the precursor finding is scientifically contested (Lanari et al. 2020 reprocessed
@@ -532,9 +532,16 @@ function renderMethod() {
   const s = state.summary;
   $('#paper-method').innerHTML = `
     <div class="method">
-      <img class="method-emblem" src="assets/emblem.webp" alt="DISSENT emblem: a balance scale weighing a document against a bridge">
+      <svg class="method-seal" viewBox="0 0 120 120" aria-hidden="true">
+        <circle cx="60" cy="60" r="56" fill="none" stroke="#16204A" stroke-width="2"/>
+        <circle cx="60" cy="60" r="43" fill="none" stroke="#16204A" stroke-width="1"/>
+        <defs><path id="sealArc" d="M 60 12 A 48 48 0 1 1 59.9 12" fill="none"/></defs>
+        <text font-family="Courier Prime, monospace" font-size="10.5" fill="#16204A" letter-spacing="1.6">
+          <textPath href="#sealArc">DISSENT * RHODE ISLAND PILOT * MMXXVI *</textPath></text>
+        <circle cx="60" cy="60" r="3" fill="#C6283C"/>
+      </svg>
       <h2>How a machine comes to disagree with the record</h2>
-      <p><b>The claim.</b> Infrastructure does not fail silently, it fails contradicted. DISSENT maintains two
+      <p><b>The claim.</b> DISSENT keeps two independent accounts of every asset and files their disagreement. It maintains two
       independent accounts of every asset: the <b>Paper Witness</b> (the official condition-rating record) and the
       <b>Physics Witness</b> (a model that predicts what the rating should be from evidence alone, never having seen
       any inspector's opinion). A calibrated disagreement between them is the product, and every disagreement is
@@ -565,10 +572,6 @@ function renderMethod() {
         occur after 2018 are pure holdout: the frozen model flagged ${Math.round(s.event_recall * 100)}% of them inside its
         top-${Math.round(s.budget_frac * 100)}% budget (${(s.event_recall / s.budget_frac).toFixed(1)}x better than random), with a median
         lead of ${Math.round(s.median_lead)} years, including the Washington Bridge every year from 2018 on.</p></div>
-      <figure class="method-figure">
-        <img src="assets/blueprint_bridge.webp" alt="Archival diagram: satellite radar sweeping a cable-stayed bridge">
-        <figcaption>PROGRAM DIAGRAM | THE AUDIT ARRIVES FROM ORBIT AND FROM THE ARCHIVE | ZERO INSTALLED HARDWARE</figcaption>
-      </figure>
       <div class="card"><h4>Honest limits, stated plainly</h4>
         <p>Interval coverage on post-2018 data is ${Math.round(s.coverage * 100)}% against a 90% target: the small shortfall is
         distribution shift, and we report it rather than retune on the test years. Several missed events are
@@ -601,7 +604,7 @@ function renderMethod() {
         AI INNOVATION CHALLENGE 2026 | BATTLE OF INTELLIGENCE | ROUND 3 : AI EVOLUTION<br>
         DATA: FHWA NATIONAL BRIDGE INVENTORY | OPEN-METEO (ERA5) | MILILLO ET AL. 2019 / LANARI ET AL. 2020 |
         BASEMAP: OPENSTREETMAP CONTRIBUTORS, CARTO | RI BOUNDARY: US CENSUS (PUBLIC DOMAIN) |
-        ILLUSTRATIONS GENERATED FOR THIS PROGRAM
+        SET IN FRAUNCES, SOURCE SERIF AND COURIER PRIME
       </div>
     </div>`;
 }
