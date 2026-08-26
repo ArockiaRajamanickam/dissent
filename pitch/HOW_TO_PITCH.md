@@ -11,12 +11,12 @@ Deck: `DISSENT_Nexus_Network_Pitch.pptx` (12 slides) · Live: https://dissent-ne
 > government file. That file goes stale, and people die between inspections.
 >
 > DISSENT keeps two independent accounts of every bridge. One is the official record. The other is a
-> model that predicts what the rating *should* be from physical evidence alone — age, traffic, weather —
+> model that predicts what the rating *should* be from physical evidence alone (age, traffic, weather)
 > and is never shown a single inspector's opinion. When the two stop agreeing, the machine files a
 > dissent: a ranked case file with a dated inspection obligation.
 >
 > We trained it on real federal data up to 2015, hid everything after, and it caught 38 of 166 real
-> failures early — one of them nine years before the paperwork admitted it. It needs no sensors and
+> failures early, one of them nine years before the paperwork admitted it. It needs no sensors and
 > no budget: every input is public."
 
 If they only ask one question, that is the answer to all of them.
@@ -70,8 +70,10 @@ If a judge looks skeptical, add: *"A model that flags everything catches everyth
 That's why we score it inside a fixed budget."*
 
 **Slide 8 — Scale.**
-> **"That's every rated bridge in the United States — 621,137 of them — drawn live in the browser from
-> a ten-megabyte file. No backend. Nothing to crash while you're marking us."**
+> **"That's every rated bridge in the United States, 621,137 of them, drawn live in the browser from a
+> ten-megabyte file. This view needs no server at all, so nothing can crash while you're marking us."**
+The system does have a real backend (you'll show it in the demo); this slide's point is that the
+*map* deliberately does not depend on it.
 
 **Slide 9 — Why it's new.**
 > **"Everything on the market measures the asset. Sensors, satellites, risk models, inspection AI. We
