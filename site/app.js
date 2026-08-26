@@ -586,6 +586,13 @@ function renderMethod() {
         <span class="pill">ADAMS-MACKAY BOCPD</span>
         <span class="pill">ZERO INSTALLED HARDWARE</span>
       </div>
+      <div class="card"><h4>Next jurisdiction: Tamil Nadu, India</h4>
+        <p>Nothing in this method is American. India's IBMS already inventories 172,517 National Highway
+        structures on the same 0-9 rating idea, and MoRTH's nationwide digital re-survey (running right now,
+        with a September 2026 deadline) is creating exactly the fresh paper baseline DISSENT audits. The pipeline
+        localises by swapping the ledger source; Morbi, 135 dead four days after a renovation nobody checked
+        against physical reality, is the precise failure mode this console exists to catch. Rhode Island is the
+        pilot because its data is public back to 1992, so every number on this screen can be verified tonight.</p></div>
       <p>Full pipeline source, from raw federal files to this console's JSON artifacts, is in the
       <a href="${REPO_URL}" target="_blank" rel="noopener">GitHub repository</a>, alongside the Round 2 concept
       report this build delivers on.</p>
