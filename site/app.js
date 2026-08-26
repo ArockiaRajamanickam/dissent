@@ -142,7 +142,7 @@ function renderChrome() {
   const s = state.summary;
   const lift = (s.event_recall / s.budget_frac).toFixed(1);
   $('#runline').textContent =
-    `${(s.state_name || 'RHODE ISLAND').toUpperCase()} | FOUR-STATE FLEET, ${fmt(s.n_structures)} STRUCTURES | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | GENERATED ${s.generated}`;
+    `${(s.state_name || 'RHODE ISLAND').toUpperCase()} | FOUR-STATE FLEET | ${fmt(s.n_structures)} ON FILE | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | GENERATED ${s.generated}`;
   $('#stat-band').innerHTML =
     `<b>${fmt(s.n_records)}</b> FILINGS<span class="sep">|</span>` +
     `OFF BY <b>${s.mae_test}</b> STEPS, UNSEEN YEARS<span class="sep">|</span>` +
@@ -220,15 +220,16 @@ function renderDocketTable() {
   $('#docket-list').innerHTML = `
     <table class="docket">
       <thead><tr>
-      <th class="sortable" data-key="rank">#${arrow('rank')}</th><th>Band</th><th>Structure</th><th>ID</th><th>History</th>
-      <th class="sortable" data-key="built">Built${arrow('built')}</th>
-      <th class="sortable" data-key="adt">ADT${arrow('adt')}</th>
+      <th class="sortable" data-key="rank">#${arrow('rank')}</th><th>Band</th><th>Structure</th>
       <th class="sortable" data-key="recorded">Record${arrow('recorded')}</th>
       <th class="sortable" data-key="pred">Physics${arrow('pred')}</th>
+      <th class="sortable" data-key="fused">Priority${arrow('fused')}</th>
+      <th>History</th><th>ID</th>
+      <th class="sortable" data-key="built">Built${arrow('built')}</th>
+      <th class="sortable" data-key="adt">ADT${arrow('adt')}</th>
       <th class="sortable" data-key="state">State${arrow('state')}</th>
       <th class="sortable" data-key="trend">Trend${arrow('trend')}</th>
-      <th class="sortable" data-key="cond">Cond.${arrow('cond')}</th>
-      <th class="sortable" data-key="fused">Priority${arrow('fused')}</th></tr></thead>
+      <th class="sortable" data-key="cond">Cond.${arrow('cond')}</th></tr></thead>
       <tbody>
       ${list.map(a => `
         <tr class="row" data-sid="${a.sid}" tabindex="0" role="button" aria-label="Open dossier for ${a.carries || a.sid}">
@@ -236,16 +237,16 @@ function renderDocketTable() {
           <td><span class="band ${a.band}">${a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band]}</span></td>
           <td><b>${a.carries || 'Unnamed'}</b> <span class="open-hint">OPEN DOSSIER &#8594;</span><br>
               <span class="dim" style="font-size:11.5px">over ${a.crosses || '—'}</span></td>
-          <td class="mono sid">${a.sid}</td>
-          <td>${sparkline(a.traj)}</td>
-          <td class="mono">${a.built || '—'}</td>
-          <td class="mono">${fmt(a.adt)}</td>
           <td><span class="rchip rc-${rcls(a.recorded)}">${a.recorded}</span></td>
           <td><span class="rchip rc-${rcls(a.pred)}">${a.pred.toFixed(1)}</span> <span class="dim mono" style="font-size:10.5px">[${Math.max(a.lower, 0).toFixed(1)}-${Math.min(a.upper, 9).toFixed(1)}]</span></td>
+          <td class="prio">${a.fused.toFixed(2)}</td>
+          <td>${sparkline(a.traj)}</td>
+          <td class="mono sid">${a.sid}</td>
+          <td class="mono">${a.built || '—'}</td>
+          <td class="mono">${fmt(a.adt)}</td>
           <td>${meter(a.state)}</td>
           <td>${meter(a.trend, 'teal')}</td>
           <td>${meter(a.cond, 'steel')}</td>
-          <td class="prio">${a.fused.toFixed(2)}</td>
         </tr>`).join('')}
       </tbody></table>
     ${list.length === 0 ? '<div class="empty-state">NO STRUCTURES MATCH — THE RECORD IS SILENT.</div>' : ''}
@@ -305,7 +306,7 @@ function openDossier(sid) {
     <div class="doc-head">
       <div>
         <p class="mono">DISSENT DOSSIER No. ${String(a.rank).padStart(3, '0')} | STRUCTURE ${a.sid} | FILED ${state.summary.generated}<br>
-        RANK ${a.rank} OF ${state.summary.n_assets} | JURISDICTION: RHODE ISLAND | SOURCE: FHWA NBI + ERA5</p>
+        RANK ${a.rank} OF ${state.summary.n_assets} | JURISDICTION: ${(state.summary.state_name || '').toUpperCase()} | SOURCE: FHWA NBI + ERA5</p>
         <h3>${a.carries || 'Unnamed structure'}</h3>
         <p class="where">over ${a.crosses || '—'}${a.location ? ', ' + a.location : ''}
         <span class="mono">| ${a.material}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
@@ -788,7 +789,12 @@ async function loadNational() {
 function drawNational() {
   if (!nat.n || nat.mode !== 'national' || !__map) return;
   const sz = __map.getSize();
-  if (!sz || sz.x < 10 || sz.y < 10) return;
+  if (!sz || !(sz.x >= 10) || !(sz.y >= 10)) return;
+  try { drawNationalInner(); } catch (err) { /* never crash on a hidden surface */ }
+}
+function drawNationalInner() {
+  const size0 = __map.getSize();
+  if (!(size0.x >= 10) || !(size0.y >= 10)) return;
   if (!nat.canvas) {
     nat.canvas = L.DomUtil.create('canvas', 'nat-canvas');
     __map.getPanes().overlayPane.appendChild(nat.canvas);
@@ -861,9 +867,11 @@ function natLegend() {
     `<div style="margin-top:4px">${fmt(m.total)} STRUCTURES | 2025 FEDERAL FILE</div>`;
 }
 function fleetLegend() {
+  const nomap = state.assets.filter(x => !x.lat || !x.lon).length;
   $('#map-legend').innerHTML =
     Object.entries({ inspect: 'INSPECT NOW', schedule: 'SCHEDULE', watch: 'WATCH', clear: 'CLEAR' })
-      .map(([b, lab]) => `<div><i style="background:${BAND_COLOR[b]}"></i>${lab}</div>`).join('');
+      .map(([b, lab]) => `<div><i style="background:${BAND_COLOR[b]}"></i>${lab}</div>`).join('') +
+    (nomap ? `<div style="margin-top:4px;color:#6A7088">${nomap} WITHOUT USABLE COORDINATES (TABLE ONLY)</div>` : '');
 }
 
 async function setMapMode(mode) {
@@ -925,7 +933,10 @@ function natClick(e) {
 
 /* ============ jurisdictions ============ */
 async function switchJur(st) {
-  if (st === state.jur) return;
+  if (st === state.jur || switchJur.__busy) return;
+  switchJur.__busy = true;
+  $('#panel-title').textContent = `${(state.summary.state_names[st] || st).toUpperCase()} DOCKET | READING THE RECORD…`;
+  document.querySelectorAll('.jurchip').forEach(b => b.disabled = true);
   $('#docket-list').innerHTML = '<div class="bootload mono">READING THE ' + st + ' FEDERAL RECORD…' +
     '<div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
   const [assets, summary, events] = await Promise.all(
@@ -939,6 +950,7 @@ async function switchJur(st) {
   renderDocketTools();
   renderDocketTable();
   rebuildMarkers();
+  switchJur.__busy = false;
 }
 function renderJurChips() {
   const el = $('#jur-chips');
@@ -981,7 +993,7 @@ function initWorldMap() {
       .addTo(__worldMap)
       .bindPopup(satMiniHTML(c.lat, c.lon, 236, 140, 16) +
                  `<b>${c.name}</b><br>${c.place}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
-                 `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView({behavior:'smooth'});return false;">read the case</a>`,
+                 `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView();return false;">read the case</a>`,
                  { maxWidth: 260, minWidth: 240 });
   });
   L.circleMarker([41.68, -71.5], { radius: 9, color: '#FAF8F4', weight: 1.5,
