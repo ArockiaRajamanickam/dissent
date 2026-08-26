@@ -71,7 +71,26 @@ wx['ft_cum'] = wx.groupby('wpt')['ft'].cumsum()
 df = panel[panel['rating'].notna()].copy()
 df['wpt'] = df['sid'].map(static['wpt'])
 df = df.merge(wx, on=['wpt', 'year'], how='left')
-df['built'] = df.groupby('sid')['built'].transform('max')
+
+# Weather-join sanity: every panel year must be near-fully covered by the
+# merged weather features, otherwise the model silently trains/scores on
+# NaN exposure (e.g. a stale weather.json missing the latest year).
+WX_FEATS = ['ft', 'ft5', 'ft_cum', 'precip5', 'heavy5', 'max1d']
+for _yy, _gy in df.groupby('year'):
+    _frac = float(_gy[WX_FEATS].notna().all(axis=1).mean())
+    if _frac < 0.95:
+        raise RuntimeError(
+            f'weather merge check failed: year {int(_yy)} has only '
+            f'{_frac:.1%} of rows with complete weather features '
+            f'({WX_FEATS}); need >= 95%. Re-run 02_weather.py (the cached '
+            f'weather.json is likely stale for that year).')
+
+# Causal 'built': a past-only running max, never future vintages. The
+# frame must be in (sid, year) order BEFORE the groupby; ffill carries the
+# last known value forward, cummax makes it monotone.
+df = df.sort_values(['sid', 'year'])
+df['built'] = df.groupby('sid')['built'].ffill()
+df['built'] = df.groupby('sid')['built'].cummax()
 df['age'] = (df['year'] - df['built']).clip(0, 200)
 df['last_work'] = df[['built', 'rebuilt']].max(axis=1)
 df['since_work'] = (df['year'] - df['last_work']).clip(0, 200)
@@ -109,14 +128,41 @@ model = HistGradientBoostingRegressor(max_depth=6, max_iter=350,
                                       learning_rate=0.06, random_state=11)
 model.fit(X[tr], y[tr])
 df['pred'] = model.predict(X)
-Q90 = float(np.quantile((y[ca] - df.loc[ca, 'pred']).abs(), 0.90))
-df['upper'] = df['pred'] + Q90
-df['lower'] = df['pred'] - Q90
+abs_res = (y - df['pred']).abs()
+Q90 = float(np.quantile(abs_res[ca], 0.90))  # standard 2016-2018 Q90
+
+# Causal conformal: when scoring year Y, only calibration residuals from
+# years strictly before Y exist, so the interval half-width is a per-year
+# quantity:  Y <= 2016 -> documented prior of 1.5 (no calibration data
+# yet); Y == 2017 -> Q90 of 2016 residuals; Y == 2018 -> Q90 of
+# 2016-2017; Y >= 2019 -> the standard 2016-2018 Q90.
+Q_PRIOR = 1.5
+
+def _q90_of(year_mask):
+    r = abs_res[year_mask]
+    return float(np.quantile(r, 0.90)) if len(r) else Q_PRIOR
+
+q_by_year = {}
+for _yy in sorted(df['year'].unique()):
+    _yy = int(_yy)
+    if _yy <= 2016:
+        q_by_year[_yy] = Q_PRIOR
+    elif _yy == 2017:
+        q_by_year[_yy] = _q90_of(df['year'] == 2016)
+    elif _yy == 2018:
+        q_by_year[_yy] = _q90_of(df['year'].isin([2016, 2017]))
+    else:
+        q_by_year[_yy] = Q90
+df['q_causal'] = df['year'].astype(int).map(q_by_year)
+df['upper'] = df['pred'] + df['q_causal']
+df['lower'] = df['pred'] - df['q_causal']
 df['resid'] = y - df['pred']
 
+# Reported 2019+ MAE/coverage use the standard Q90 (identical to q_causal
+# on those years, kept explicit for the report).
 mae_te = float((y[te] - df.loc[te, 'pred']).abs().mean())
-cov_te = float(((y[te] >= df.loc[te, 'lower']) &
-                (y[te] <= df.loc[te, 'upper'])).mean())
+cov_te = float(((y[te] >= df.loc[te, 'pred'] - Q90) &
+                (y[te] <= df.loc[te, 'pred'] + Q90)).mean())
 print(f'pooled: train {tr.sum()} calib {ca.sum()} test {te.sum()} '
       f'| q90 {Q90:.2f} | 2019+ MAE {mae_te:.2f} | coverage {cov_te:.1%}')
 
@@ -162,6 +208,12 @@ def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
         mu = np.concatenate([[mu0], (k * mu + x) / (k + 1)])
         k = np.concatenate([[k0], k + 1])
         a = np.concatenate([[a0], a + 0.5])
+    # Burn-in for prefix causality: sigma0 above is estimated from the
+    # first min(8, n) observations' diffs, so change-point probabilities
+    # at those early indices would peek at data used to set the prior.
+    # Zero them out; detection is only claimed from the 9th observation.
+    for i in range(min(8, len(cps))):
+        cps[i] = 0.0
     return cps
 
 # --------------------------------------------------- one pass per asset
@@ -210,7 +262,13 @@ def top_set(ref_year):
         for sid in P:
             hit = at_or_before(sid, ref_year)
             if hit:
-                scores[sid] = hit[1]['prio']
+                i, row = hit
+                # recency: only rank assets actually observed within the
+                # 3 years up to the reference year; a stale last record
+                # is not a live opinion at ref_year.
+                if P[sid]['years'][i] < ref_year - 3:
+                    continue
+                scores[sid] = row['prio']
         ranked = sorted(scores, key=lambda s: -scores[s])
         ranking_cache[ref_year] = set(ranked[:max(1, int(len(ranked) * BUDGET_FRAC))])
     return ranking_cache[ref_year]
@@ -224,13 +282,13 @@ for _, e in ev_test.iterrows():
     flagged += hit
     lead = None
     if hit:
-        for back in range(0, 8):
-            yy = ref - back
-            if e['sid'] in top_set(yy):
-                lead = int(e['year']) - yy
-            else:
-                break
-        if lead:
+        # walk back year by year until the asset drops out of the top set
+        # or we leave the scored era (first causal quantiles start 2016)
+        yy = ref
+        while yy >= 2016 and e['sid'] in top_set(yy):
+            lead = int(e['year']) - yy
+            yy -= 1
+        if lead is not None:
             leads.append(lead)
     ev_rows.append(dict(sid=e['sid'].split(':', 1)[1].lstrip('0') or e['sid'],
                         state=e['sid'].split(':', 1)[0],
@@ -247,16 +305,27 @@ print(f'held-out events 2019+ (pooled): {len(ev_rows)}, flagged early '
 latest_year = int(df['year'].max())
 X_med = X.median()
 
+# Grouped one-at-a-time sensitivity: correlated feature families are
+# substituted to their medians jointly so their effect is not split (and
+# double-counted) across near-duplicate columns; the rest stay singles.
+ATTR_GROUPS = [(('age', 'since_work'), 'age and work history'),
+               (('ft', 'ft5', 'ft_cum'), 'freeze-thaw exposure'),
+               (('precip5', 'heavy5', 'max1d'), 'precipitation exposure')]
+_grouped = {f for fs, _ in ATTR_GROUPS for f in fs}
+ATTR_ITEMS = ATTR_GROUPS + [((f,), FEAT_LABELS[f])
+                            for f in FEATS if f not in _grouped]
+
 def attributions(row):
     x = row[FEATS].astype(float).to_frame().T
     base = float(model.predict(x)[0])
     out = []
-    for f in FEATS:
+    for fs, label in ATTR_ITEMS:
         x2 = x.copy()
-        x2[f] = X_med[f]
+        for f in fs:
+            x2[f] = X_med[f]
         delta = base - float(model.predict(x2)[0])
         if abs(delta) > 0.02:
-            out.append((FEAT_LABELS[f], round(delta, 2)))
+            out.append((label, round(delta, 2)))
     out.sort(key=lambda t: -abs(t[1]))
     return out[:5]
 
@@ -275,20 +344,35 @@ pooled = dict(
     budget_frac=BUDGET_FRAC, states=STATES, state_names=STATE_NAME,
     bands=dict(inspect=INSPECT_NOW, schedule=SCHEDULE, watch=WATCH))
 
+def is_newbuild(last):
+    """Newbuild abstention on the asset's LAST-row causal values:
+    latest_year - max(built, rebuilt) <= NEWBUILD_YEARS (a NaN rebuilt
+    means never rebuilt, so built alone decides)."""
+    b = last['built']
+    if pd.isna(b):
+        return False
+    rb = last['rebuilt']
+    work = b if pd.isna(rb) else max(b, rb)
+    return (latest_year - work) <= NEWBUILD_YEARS
+
 for ST in STATES:
     sids = [s for s in P if s.startswith(ST + ':')]
     docket = []
+    n_stale = 0
     latest_closed = panel.sort_values('year').groupby('sid').tail(1).set_index('sid')['closed']
     for sid in sids:
         g = P[sid]['g']
         last = g.iloc[-1]
         if bool(latest_closed.get(sid, False)):
             continue
+        # recency: an asset not rated within the last 2 panel years has no
+        # live record to dissent against, so exclude it from the docket
+        if int(g['year'].max()) < latest_year - 2:
+            n_stale += 1
+            continue
         docket.append((sid, len(P[sid]['rows']) - 1, last))
-    newbuild = np.array([
-        (not pd.isna(last['built'])) and
-        (latest_year - last['built'] <= NEWBUILD_YEARS)
-        for _, _, last in docket])
+    newbuild = np.array([is_newbuild(last) for _, _, last in docket],
+                        dtype=bool)
     prio = np.array([P[sid]['rows'][i]['prio'] for sid, i, _ in docket])
     order = np.argsort(-np.where(newbuild, -1.0, prio))
     assets_out = []
@@ -304,6 +388,9 @@ for ST in STATES:
                  round(float(r.pred), 2)] for r in g.itertuples()]
         attr = attributions(g.iloc[-1]) if band != 'clear' else []
         t = row['terms']
+        # round the three priority terms first, then sum, so the exported
+        # fused score is the EXACT sum of the exported terms (UI adds them)
+        pr_s, pr_t, pr_c = round(t[0], 3), round(t[1], 3), round(t[2], 3)
         assets_out.append(dict(
             sid=sid.split(':', 1)[1].lstrip('0') or sid,
             rank=rank_pos + 1, band=band,
@@ -327,15 +414,16 @@ for ST in STATES:
             upper=round(float(last['upper']), 2),
             cond=round(row['cond'], 3), state=round(row['state'], 3),
             trend=round(row['trend'], 3), cp=round(row['cp'], 3),
-            pr_state=round(t[0], 3), pr_trend=round(t[1], 3),
-            pr_cond=round(t[2], 3), fused=round(row['prio'], 3),
+            pr_state=pr_s, pr_trend=pr_t,
+            pr_cond=pr_c, fused=round(pr_s + pr_t + pr_c, 3),
             newbuild=bool(newbuild[idx]),
             traj=traj, cps=[round(c, 3) for c in P[sid]['cps']], attr=attr))
     summary = dict(pooled)
     summary.update(state=ST, state_name=STATE_NAME[ST],
                    n_assets=len(assets_out),
                    n_poor=int(sum(1 for a in assets_out if a['recorded'] <= 4)),
-                   n_newbuild=int(newbuild.sum()))
+                   n_newbuild=int(newbuild.sum()),
+                   n_stale=int(n_stale))
     json.dump(assets_out, open(os.path.join(SITE, f'assets_{ST}.json'), 'w'))
     json.dump(summary, open(os.path.join(SITE, f'summary_{ST}.json'), 'w'))
     json.dump(dict(events=[e for e in ev_rows if e['state'] == ST]),
@@ -343,8 +431,9 @@ for ST in STATES:
     print(f'{ST}: {len(assets_out)} assets, {summary["n_poor"]} poor, '
           f'{summary["n_newbuild"]} abstained')
 
-# Washington Bridge exhibit (RI)
-wb_sid = 'RI:000000000007000'
+# Washington Bridge exhibit (RI); sid in normalized form (R4: leading
+# zeros stripped in 01_ledger)
+wb_sid = 'RI:7000'
 if wb_sid in P:
     g = P[wb_sid]['g']
     wb_d = {}
@@ -382,6 +471,9 @@ while t <= 2018.62:
     mor.append([round(t, 3), round(vel + np.random.default_rng(
         int(t * 100)).normal(0, 2.2), 1), round(disp, 1)])
     t += 1 / 12
-json.dump(dict(series=mor, breakpoint=2017.19, collapse=2018.62),
+json.dump(dict(series=mor, breakpoint=2017.19, collapse=2018.62,
+               synthetic=True,
+               source='parametric reconstruction after Milillo et al. 2019 '
+                      '(contested by Lanari et al. 2020)'),
           open(os.path.join(SITE, 'morandi.json'), 'w'))
 print('done')

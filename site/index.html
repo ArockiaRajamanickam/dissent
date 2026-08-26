@@ -3,12 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DISSENT — the machine second opinion</title>
+<title>DISSENT: the machine second opinion</title>
 <meta property="og:title" content="DISSENT: the machine second opinion">
-<meta property="og:description" content="A physics-only model re-inspects every bridge in Rhode Island and files a dissent where the official record stops agreeing with the evidence.">
+<meta property="og:description" content="A physics-only model re-inspects 9,766 bridges across four US states and files a dissent wherever the official record stops agreeing with the evidence.">
+<meta property="og:type" content="website">
 <meta property="og:image" content="https://dissent-nexus.netlify.app/assets/blueprint_bridge.webp">
+<meta property="og:image:width" content="1400">
+<meta property="og:image:height" content="933">
+<meta property="og:image:alt" content="Blueprint of a bridge scanned by a satellite">
 <meta property="og:url" content="https://dissent-nexus.netlify.app/">
-<meta name="description" content="DISSENT audits every bridge in an inventory by testing the official inspection record against a physics-only model. Team Nexus Network, AI Innovation Challenge 2026.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dissent-nexus.netlify.app/assets/blueprint_bridge.webp">
+<meta name="description" content="A physics-only model re-inspects 9,766 bridges across four US states and files a dissent wherever the official record stops agreeing with the evidence.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2316204A'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23FAF8F4' font-family='monospace' font-weight='bold'>D</text><rect x='20' y='78' width='60' height='8' fill='%23C6283C'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,12 +27,12 @@
 <header class="chrome">
   <div class="chrome-top">
     <a class="brand" href="#docket">DISSENT<span class="brand-dot"></span></a>
-    <div class="runline mono" id="runline">RHODE ISLAND | NBI 1992-2025 | MODEL FROZEN 2015 | RUN 2026-Q3</div>
+    <div class="runline mono" id="runline">FOUR-STATE FLEET | NBI 1992-2025 | MODEL FROZEN 2015</div>
     <div class="clock mono"><span class="run-dot" aria-hidden="true"></span><span id="utc-clock">--:--:--</span> UTC</div>
   </div>
   <nav class="tabrail mono">
     <a href="#docket" data-nav="docket"><span>01</span> THE DOCKET</a>
-    <a href="#washington" data-nav="washington"><span>02</span> EXHIBIT A: WASHINGTON</a>
+    <a href="#washington" data-nav="washington"><span>02</span> EXHIBIT A: A CATCH AND A MISS</a>
     <a href="#morandi" data-nav="morandi"><span>03</span> EXHIBIT B: MORANDI</a>
     <a href="#world" data-nav="world"><span>04</span> THE WORLD</a>
     <a href="#method" data-nav="method"><span>05</span> THE METHOD</a>
@@ -35,6 +41,7 @@
 </header>
 
 <main>
+  <h1 class="sr-only">DISSENT: the machine second opinion on America's bridges</h1>
   <section id="view-docket" class="view view-console" aria-label="Dissent docket">
     <div id="map-side">
       <div id="map"></div>
@@ -59,7 +66,7 @@
   </section>
 
   <section id="view-washington" class="view view-paper" aria-label="Washington Bridge case file">
-    <div class="module-head mono">EXHIBIT A / THE RECORD SAID 4. THE BRIDGE SAID OTHERWISE.</div>
+    <div class="module-head mono">EXHIBIT A / WHAT THE MACHINE CAUGHT, AND WHAT IT DID NOT</div>
     <div class="paper" id="paper-washington"></div>
   </section>
 
@@ -88,10 +95,10 @@
   <div id="sb-right">—</div>
 </footer>
 
-<div id="dossier-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+<div id="dossier-overlay" class="overlay hidden" role="dialog" aria-modal="true" inert>
   <aside class="dossier" id="dossier-body"></aside>
 </div>
-<div id="toast" class="toast mono hidden"></div>
+<div id="toast" class="toast mono hidden" role="status" aria-live="polite"></div>
 
 <script src="vendor/leaflet.js"></script>
 <script src="app.js"></script>

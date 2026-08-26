@@ -82,7 +82,11 @@ for path in sorted(glob.glob(os.path.join(RAW, '[A-Z][A-Z]*.txt'))):
     df['state'] = st
     rows.append(df)
 panel = pd.concat(rows, ignore_index=True)
-panel['sid'] = panel['state'] + ':' + panel['sid'].str.strip()
+# Normalize structure numbers: strip whitespace and leading zeros so the
+# same asset keys identically across vintages ('  00007000 ' == '7000').
+sid_norm = panel['sid'].str.strip().str.lstrip('0')
+sid_norm = sid_norm.where(sid_norm != '', '0')  # all-zero sid stays '0'
+panel['sid'] = panel['state'] + ':' + sid_norm
 panel = panel.drop_duplicates(subset=['sid', 'year'], keep='first')
 
 for c in ['deck', 'superstructure', 'substructure', 'culvert']:
@@ -94,6 +98,52 @@ for c in ['built', 'rebuilt', 'adt', 'truck_pct', 'lanes', 'material',
     panel[c] = pd.to_numeric(panel[c], errors='coerce')
 panel['lat'] = panel['lat_raw'].map(lambda v: dms(v, 8))
 panel['lon'] = -panel['lon_raw'].map(lambda v: dms(v, 9))
+
+# ---- coordinate plausibility gate ---------------------------------------
+# Per-state bounding boxes: (lat_min, lat_max, lon_min, lon_max).
+STATE_BOUNDS = {'RI': (41.1, 42.05, -71.95, -71.05),
+                'VT': (42.7, 45.05, -73.5, -71.4),
+                'NH': (42.6, 45.35, -72.65, -70.55),
+                'DE': (38.4, 39.9, -75.85, -74.95)}
+has_coord = (panel['lat'].notna() & panel['lon'].notna() &
+             panel['state'].isin(STATE_BOUNDS))
+in_bounds = pd.Series(False, index=panel.index)
+for st_, (la0, la1, lo0, lo1) in STATE_BOUNDS.items():
+    m = has_coord & (panel['state'] == st_)
+    in_bounds.loc[m] = (panel.loc[m, 'lat'].between(la0, la1) &
+                        panel.loc[m, 'lon'].between(lo0, lo1))
+bad = has_coord & ~in_bounds
+# Some source rows have lat/lon transposed (e.g. DE 1912N082: the raw LAT
+# field holds the longitude DMS, 75d39'22.4", and raw LONG holds the
+# latitude, 39d27'48.5"). After our sign convention that comes out as
+# lat = |true lon| and lon = -true lat, so the recovery is
+# lat' = -lon, lon' = -lat. Accept the swap only when the swapped pair
+# passes the state's bounds; otherwise null both coordinates.
+cand_lat = -panel.loc[bad, 'lon']
+cand_lon = -panel.loc[bad, 'lat']
+swap_ok = pd.Series(False, index=cand_lat.index)
+for st_, (la0, la1, lo0, lo1) in STATE_BOUNDS.items():
+    m = panel.loc[bad, 'state'].eq(st_)
+    idx = m[m].index
+    swap_ok.loc[idx] = (cand_lat.loc[idx].between(la0, la1) &
+                        cand_lon.loc[idx].between(lo0, lo1))
+fix_idx = swap_ok[swap_ok].index
+panel.loc[fix_idx, 'lat'] = cand_lat.loc[fix_idx]
+panel.loc[fix_idx, 'lon'] = cand_lon.loc[fix_idx]
+null_idx = swap_ok[~swap_ok].index
+panel.loc[null_idx, 'lat'] = np.nan
+panel.loc[null_idx, 'lon'] = np.nan
+# Every surviving non-null coordinate must now pass its state's bounds.
+chk = (panel['lat'].notna() & panel['lon'].notna() &
+       panel['state'].isin(STATE_BOUNDS))
+for st_, (la0, la1, lo0, lo1) in STATE_BOUNDS.items():
+    m = chk & (panel['state'] == st_)
+    assert (panel.loc[m, 'lat'].between(la0, la1) &
+            panel.loc[m, 'lon'].between(lo0, lo1)).all(), \
+        f'coordinate gate: out-of-bounds coordinates remain for {st_}'
+print(f'coordinate gate: {len(fix_idx)} transposed pairs fixed, '
+      f'{len(null_idx)} implausible pairs nulled')
+
 panel['closed'] = panel['status'].astype(str).str.strip().eq('K')
 
 panel = panel[panel['rating'].notna() | panel['closed']]
@@ -102,8 +152,9 @@ panel.to_parquet(os.path.join(OUT, 'panel.parquet'))
 # ---- proxy-event mining: >=2-step drops or closures between snapshots ----
 events = []
 for sid, g in panel.sort_values('year').groupby('sid'):
-    g = g[g['rating'].notna()]
-    r = g[['year', 'rating']].values
+    # rating-drop events between consecutive rated snapshots
+    gr = g[g['rating'].notna()]
+    r = gr[['year', 'rating']].values
     for i in range(1, len(r)):
         drop = r[i - 1][1] - r[i][1]
         if drop >= 2:
@@ -111,13 +162,27 @@ for sid, g in panel.sort_values('year').groupby('sid'):
                                prev_year=int(r[i - 1][0]),
                                from_rating=int(r[i - 1][1]),
                                to_rating=int(r[i][1]), kind='drop'))
-    gc = panel[(panel['sid'] == sid)].sort_values('year')
-    cl = gc[gc['closed']]
-    if len(cl) and not gc['closed'].iloc[0]:
-        first_closed = int(cl['year'].iloc[0])
-        events.append(dict(sid=sid, year=first_closed, prev_year=first_closed - 1,
-                           from_rating=-1, to_rating=-1, kind='closed'))
+    # closure events: EVERY open->closed transition, with prev_year /
+    # from_rating taken from the actual preceding snapshot row. A sid
+    # that is already closed at its first snapshot has no prior open
+    # observation, so no event is emitted for it (loop starts at 1).
+    yrs = g['year'].tolist()
+    cls = g['closed'].tolist()
+    rat = g['rating'].tolist()
+    for i in range(1, len(g)):
+        if cls[i] and not cls[i - 1]:
+            fr = rat[i - 1]
+            events.append(dict(sid=sid, year=int(yrs[i]),
+                               prev_year=int(yrs[i - 1]),
+                               from_rating=int(fr) if not pd.isna(fr) else -1,
+                               to_rating=-1, kind='closed'))
 ev = pd.DataFrame(events).drop_duplicates(subset=['sid', 'year', 'kind'])
+# A closure at (sid, year) supersedes a rating-drop mined for the same
+# snapshot: keep the closure, drop the drop.
+if len(ev):
+    key = ev['sid'].astype(str) + '@' + ev['year'].astype(str)
+    closed_keys = set(key[ev['kind'] == 'closed'])
+    ev = ev[~((ev['kind'] == 'drop') & key.isin(closed_keys))]
 ev.to_parquet(os.path.join(OUT, 'events.parquet'))
 
 latest = panel.sort_values('year').groupby('sid').tail(1)

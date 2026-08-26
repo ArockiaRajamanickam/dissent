@@ -6,8 +6,10 @@ Record layout, little-endian, 16 bytes:
   f32 lat | f32 lon | i8 cond | u16 built | u32 adt | u8 state_idx
 """
 import glob
+import gzip
 import os
 import re
+import shutil
 import struct
 import json
 import numpy as np
@@ -58,8 +60,8 @@ for path in sorted(glob.glob(os.path.join(NAT, '*.txt'))):
                                 built[ok], adt[ok]):
         buf += struct.pack('<ffbHIB',
                            float(la), float(lo), int(r),
-                           0 if pd.isna(b) else min(int(b), 65535),
-                           0 if pd.isna(ad) else min(int(ad), 4294967295),
+                           0 if pd.isna(b) else max(0, min(int(b), 65535)),
+                           0 if pd.isna(ad) else max(0, min(int(ad), 4294967295)),
                            si)
         n += 1
         if r <= 4:
@@ -68,7 +70,12 @@ for path in sorted(glob.glob(os.path.join(NAT, '*.txt'))):
     total += n
     print(f'{st}: {n} ({np_} poor)', flush=True)
 
-open(os.path.join(SITE, 'national.bin'), 'wb').write(bytes(buf))
+nb_path = os.path.join(SITE, 'national.bin')
+open(nb_path, 'wb').write(bytes(buf))
+# precompressed copy so hosts without on-the-fly compression can serve it
+with open(nb_path, 'rb') as fi, \
+        gzip.open(nb_path + '.gz', 'wb', compresslevel=9) as fo:
+    shutil.copyfileobj(fi, fo)
 json.dump(dict(states=states, counts=counts, poor=poor_counts,
                total=total, poor_total=sum(poor_counts.values()),
                year=2025, stride=16),

@@ -3,10 +3,11 @@
 
 const REPO_URL = 'https://github.com/ArockiaRajamanickam/dissent';
 const state = { assets: [], summary: null, events: null, morandi: null,
-                world: null, jur: 'RI', eventsRI: null,
+                world: null, exhibit: null, jur: 'RI', eventsRI: null,
                 bandFilter: 'priority', query: '', sortKey: 'rank', sortAsc: true };
 const $ = (s, el) => (el || document).querySelector(s);
 const fmt = n => n === null || n === undefined ? '—' : n.toLocaleString('en-US');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ============ BOCPD: Adams-MacKay, NIG (unknown mean + variance) ============
    The changepoint path emits under a broad new-segment prior so the
@@ -69,10 +70,7 @@ function trajChart(traj, cps, opts = {}) {
   let s = svgOpen(W, H);
   for (let r = 0; r <= 9; r += 3) {
     s += `<line x1="${L}" y1="${Y(r)}" x2="${W - R}" y2="${Y(r)}" stroke="#EFECE4"/>`;
-    s += `<text x="${L - 8}" y="${Y(r) + 4}" font-size="11" fill="#6A7088" text-anchor="end" font-family="Courier Prime">${r}</text>`;
-  }
-  for (let yr = Math.ceil(x0 / 5) * 5; yr <= x1; yr += 5) {
-    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="11" fill="#6A7088" text-anchor="middle" font-family="Courier Prime">${yr}</text>`;
+    s += `<text x="${L - 8}" y="${Y(r) + 4}" font-size="15" fill="#6A7088" text-anchor="end" font-family="Courier Prime">${r}</text>`;
   }
   const band = traj.filter(t => t[2] !== null);
   if (band.length) {
@@ -98,9 +96,13 @@ function trajChart(traj, cps, opts = {}) {
       if (c > 0.02) s += `<rect x="${X(t[0]) - 3}" y="${H - 26 - c * bh}" width="6" height="${c * bh}" fill="#C6283C" opacity="0.85"/>`;
     });
   }
+  for (let yr = Math.ceil(x0 / 5) * 5; yr <= x1; yr += 5) {
+    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="15" fill="#6A7088" text-anchor="middle" font-family="Courier Prime">${yr}</text>`;
+  }
   (opts.markers || []).forEach(m => {
     s += `<line x1="${X(m.year)}" y1="${T}" x2="${X(m.year)}" y2="${H - B}" stroke="#C6283C" stroke-width="1.2" stroke-dasharray="4 3"/>`;
-    s += `<text x="${X(m.year) + 5}" y="${T + 13}" font-size="11" fill="#C6283C" font-family="Courier Prime">${m.label}</text>`;
+    const flip = X(m.year) > W - 130;
+    s += `<text x="${X(m.year) + (flip ? -5 : 5)}" y="${T + 13}" font-size="15" fill="#C6283C" font-family="Courier Prime" text-anchor="${flip ? 'end' : 'start'}">${m.label}</text>`;
   });
   return s + '</svg>';
 }
@@ -148,7 +150,7 @@ function renderChrome() {
     `OFF BY <b>${s.mae_test}</b> STEPS, UNSEEN YEARS<span class="sep">|</span>` +
     `COVERAGE <b>${Math.round(s.coverage * 100)}%</b><span class="sep">|</span>` +
     `<span class="hot">CAUGHT <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x CHANCE)</span><span class="sep">|</span>` +
-    `<span class="hot">WASHINGTON <b>+5 YRS</b></span>`;
+    `<span class="hot">BEST VERIFIED LEAD <b>${state.exhibit ? state.exhibit.catch.lead : 9} YRS</b></span>`;
   const nI = state.assets.filter(x => x.band === 'inspect').length;
   const nS = state.assets.filter(x => x.band === 'schedule').length;
   const nW = state.assets.filter(x => x.band === 'watch').length;
@@ -181,11 +183,13 @@ function filteredList() {
   else if (state.bandFilter !== 'all') list = list.filter(a => a.band === state.bandFilter);
   if (state.query) {
     const q = state.query.toUpperCase();
-    list = list.filter(a => (a.carries + ' ' + a.crosses + ' ' + a.sid).toUpperCase().includes(q));
+    list = list.filter(a => (a.carries + ' ' + a.crosses + ' ' + a.sid + ' ' +
+      (a.built || '') + ' ' + (a.location || '')).toUpperCase().includes(q));
   }
   const sk = state.sortKey;
+  const sent = state.sortAsc ? Infinity : -Infinity;
   return [...list].sort((x, y) => {
-    const av = x[sk] ?? -Infinity, bv = y[sk] ?? -Infinity;
+    const av = x[sk] ?? sent, bv = y[sk] ?? sent;
     return state.sortAsc ? (av > bv ? 1 : av < bv ? -1 : 0) : (av < bv ? 1 : av > bv ? -1 : 0);
   });
 }
@@ -199,7 +203,7 @@ function renderDocketTools() {
       ${['priority', 'inspect', 'schedule', 'watch', 'all'].map(b =>
         `<button class="chip ${state.bandFilter === b ? 'active' : ''}" data-band="${b}">` +
         `${b === 'priority' ? 'DOCKET' : b === 'all' ? 'ALL' : BAND_LABEL[b]} <span class="n">${counts[b]}</span></button>`).join('')}
-      <input class="search" id="docket-search" placeholder="search ${fmt(state.summary.n_assets)} structures" value="${state.query}">
+      <input class="search" id="docket-search" placeholder="search ${fmt(state.summary.n_assets)} structures" value="">
       <span class="result-count" id="result-count"></span>
     </div>`;
   document.querySelectorAll('#docket-tools .chip').forEach(c => c.onclick = () => {
@@ -207,6 +211,7 @@ function renderDocketTools() {
     renderDocketTools(); renderDocketTable(); applyMarkerFilter();
   });
   const sr = $('#docket-search');
+  sr.value = state.query;
   let deb = null;
   sr.oninput = () => {
     clearTimeout(deb);
@@ -232,16 +237,16 @@ function renderDocketTable() {
       <th class="sortable" data-key="cond">Cond.${arrow('cond')}</th></tr></thead>
       <tbody>
       ${list.map(a => `
-        <tr class="row" data-sid="${a.sid}" tabindex="0" role="button" aria-label="Open dossier for ${a.carries || a.sid}">
+        <tr class="row" data-sid="${esc(a.sid)}" tabindex="0" role="button" aria-label="Open dossier for ${esc(a.carries || a.sid)}">
           <td class="mono">${a.rank}</td>
           <td><span class="band ${a.band}">${a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band]}</span></td>
-          <td><b>${a.carries || 'Unnamed'}</b> <span class="open-hint">OPEN DOSSIER &#8594;</span><br>
-              <span class="dim" style="font-size:11.5px">over ${a.crosses || '—'}</span></td>
+          <td><b>${esc(a.carries || 'Unnamed')}</b> <span class="open-hint">OPEN DOSSIER &#8594;</span><br>
+              <span class="dim" style="font-size:11.5px">over ${esc(a.crosses || '—')}</span></td>
           <td><span class="rchip rc-${rcls(a.recorded)}">${a.recorded}</span></td>
           <td><span class="rchip rc-${rcls(a.pred)}">${a.pred.toFixed(1)}</span> <span class="dim mono" style="font-size:10.5px">[${Math.max(a.lower, 0).toFixed(1)}-${Math.min(a.upper, 9).toFixed(1)}]</span></td>
           <td class="prio">${a.fused.toFixed(2)}</td>
           <td>${sparkline(a.traj)}</td>
-          <td class="mono sid">${a.sid}</td>
+          <td class="mono sid">${esc(a.sid)}</td>
           <td class="mono">${a.built || '—'}</td>
           <td class="mono">${fmt(a.adt)}</td>
           <td>${meter(a.state)}</td>
@@ -249,7 +254,7 @@ function renderDocketTable() {
           <td>${meter(a.cond, 'steel')}</td>
         </tr>`).join('')}
       </tbody></table>
-    ${list.length === 0 ? '<div class="empty-state">NO STRUCTURES MATCH — THE RECORD IS SILENT.</div>' : ''}
+    ${list.length === 0 ? '<div class="empty-state">NOTHING ON FILE BY THAT NAME. THE RECORD IS SILENT.</div>' : ''}
     <div class="note" style="padding:10px 14px">Ratings use the federal NBI 0-9 scale (minimum of deck, superstructure,
     substructure, culvert). Physics interval: split-conformal, calibrated 2016-2018. Build years come straight from the
     federal record, including one structure the 2025 file already lists as built 2026 (a replacement in progress).
@@ -272,6 +277,8 @@ function renderDocketTable() {
 function openDossier(sid) {
   const a = state.assets.find(x => x.sid === sid);
   if (!a) return;
+  clearTimeout(openDossier.__t);
+  openDossier.__prevFocus = document.activeElement;
   const gap = a.recorded - a.upper;
   let verdict;
   const dom = Math.max(a.pr_state ?? 0, a.pr_trend ?? 0, a.pr_cond ?? 0);
@@ -284,7 +291,7 @@ function openDossier(sid) {
       ? `Physics, working blind, puts this structure at <b>${a.pred.toFixed(1)}</b>
          (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}). The record on file says
          <b>${a.recorded}</b>: <b>${gap.toFixed(1)} steps sunnier</b> than the evidence.`
-      : `The record calls this a <b>${a.recorded}</b>. Physics, never shown the record, calls it
+      : `The record calls this ${a.recorded === 8 ? 'an' : 'a'} <b>${a.recorded}</b>. Physics, never shown the record, calls it
          <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
          The official record is <b>${gap.toFixed(1)} rating steps more optimistic</b> than the evidence supports.`;
   } else if ((a.pr_trend ?? 0) === dom && dom > 0.05) {
@@ -305,23 +312,26 @@ function openDossier(sid) {
     <button class="close">FILE AWAY (ESC)</button>
     <div class="doc-head">
       <div>
-        <p class="mono">DISSENT DOSSIER No. ${String(a.rank).padStart(3, '0')} | STRUCTURE ${a.sid} | FILED ${state.summary.generated}<br>
+        <p class="mono">DISSENT DOSSIER No. ${String(a.rank).padStart(3, '0')} | STRUCTURE ${esc(a.sid)} | FILED ${state.summary.generated}<br>
         RANK ${a.rank} OF ${state.summary.n_assets} | JURISDICTION: ${(state.summary.state_name || '').toUpperCase()} | SOURCE: FHWA NBI + ERA5</p>
-        <h3>${a.carries || 'Unnamed structure'}</h3>
-        <p class="where">over ${a.crosses || '—'}${a.location ? ', ' + a.location : ''}
-        <span class="mono">| ${a.material}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
+        <h3>${esc(a.carries || 'Unnamed structure')}</h3>
+        <p class="where">over ${esc(a.crosses || '—')}${a.location ? ', ' + esc(a.location) : ''}
+        <span class="mono">| ${esc(a.material)}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
       </div>
-      <div class="stamp" style="--tilt:${(((parseInt(a.sid, 10) || 7) % 2 ? 1 : -1) * (2 + ((parseInt(a.sid, 10) || 7) % 9) * 0.6)).toFixed(1)}deg;--ink:${(0.62 + ((parseInt(a.sid, 10) || 3) % 8) * 0.04).toFixed(2)}">${stampText}</div>
+      <div class="stamp" style="--tilt:${(((parseInt(a.sid, 10) || 7) % 2 ? 1 : -1) * (2 + ((parseInt(a.sid, 10) || 7) % 9) * 0.6)).toFixed(1)}deg;--stamp-ink:${(0.62 + ((parseInt(a.sid, 10) || 3) % 8) * 0.04).toFixed(2)}">${stampText}</div>
     </div>
-    <div class="rduel rduel-lg">${rbadge('THE RECORD SAYS', a.recorded)}<em>vs</em>${rbadge('PHYSICS SAYS', a.pred, '[' + Math.max(a.lower, 0).toFixed(1) + ' - ' + Math.min(a.upper, 9).toFixed(1) + ']')}</div>
+    <div class="rduel rduel-lg">${rbadge('THE RECORD SAYS', a.recorded)}<em>vs</em>${a.newbuild
+      ? '<span class="rbadge rb-abstain"><i>PHYSICS SAYS</i><b>—</b><u>ABSTAINS</u></span>'
+      : rbadge('PHYSICS SAYS', a.pred, '[' + Math.max(a.lower, 0).toFixed(1) + '-' + Math.min(a.upper, 9).toFixed(1) + ']')}</div>
     <div class="particulars mono">
-      <span><i>BUILT</i>${a.built || '—'}${a.built ? ' (' + (state.summary.latest_year - a.built) + ' YRS)' : ''}</span>
+      <span><i>BUILT</i>${a.built || '—'}${a.built ? ' (' + (state.summary.latest_year - a.built) +
+        (state.summary.latest_year - a.built === 1 ? ' YR)' : ' YRS)') : ''}</span>
       <span><i>REBUILT</i>${a.rebuilt || 'NEVER'}</span>
       <span><i>LENGTH</i>${a.length_m ? a.length_m + ' M' : '—'}</span>
       <span><i>LANES</i>${a.lanes ?? '—'}</span>
       <span><i>DAILY TRAFFIC</i>${fmt(a.adt)}</span>
       <span><i>TRUCK SHARE</i>${a.truck_pct != null ? a.truck_pct + '%' : '—'}</span>
-      <span><i>MATERIAL</i>${(a.material || 'UNKNOWN').toUpperCase()}</span>
+      <span><i>MATERIAL</i>${esc((a.material || 'UNKNOWN').toUpperCase())}</span>
       <span><i>LAST FILED</i>${a.last_year || '—'}</span>
     </div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
@@ -342,7 +352,7 @@ function openDossier(sid) {
           <li>0.45 x state dissent (capped, scaled)<b>${(a.pr_state ?? 0).toFixed(3)}</b></li>
           <li>0.25 x trend dissent (capped, scaled)<b>${(a.pr_trend ?? 0).toFixed(3)}</b></li>
           <li>0.30 x condition severity<b>${(a.pr_cond ?? 0).toFixed(3)}</b></li>
-          <li>Fused priority<b>${a.fused.toFixed(3)}</b></li>
+          <li>Fused priority<b>${((a.pr_state ?? 0) + (a.pr_trend ?? 0) + (a.pr_cond ?? 0)).toFixed(3)}</b></li>
         </ul>
         <p class="note">Each channel is capped and scaled to [0,1] before weighting; the three terms add up to the priority.</p>
       </div>
@@ -351,12 +361,16 @@ function openDossier(sid) {
       <p>${a.newbuild ? 'Structures five years old or newer sit outside the training support of the age and exposure features; DISSENT does not issue verdicts it cannot calibrate.' : OBLIGATION[a.band]}</p>
       <div class="route">GENERATED AUTOMATICALLY | OBLIGATION ROUTES TO THE DISTRICT ENGINEER | VERIFICATION OUTCOME RETURNS AS A TRAINING LABEL</div>
     </div>`;
+  $('#dossier-body').scrollTop = 0;
   $('#dossier-overlay').classList.remove('hidden');
+  $('#dossier-overlay').toggleAttribute('inert', false);
   document.body.style.overflow = 'hidden';
   $('#dossier-body .close').onclick = closeDossier;
+  $('#dossier-body .close').focus();
   if (a.lat && document.getElementById('doss-sat')) {
-    setTimeout(() => {
+    openDossier.__t = setTimeout(() => {
       try {
+        window.__dossMap?.remove();
         window.__dossMap = L.map('doss-sat', { zoomControl: false, attributionControl: false,
           dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false,
           keyboard: false, touchZoom: false });
@@ -373,9 +387,14 @@ function openDossier(sid) {
     r.classList.toggle('hl', r.dataset.sid === sid));
 }
 function closeDossier() {
-  $('#dossier-overlay').classList.add('hidden');
+  clearTimeout(openDossier.__t);
+  const overlay = $('#dossier-overlay');
+  const wasOpen = !overlay.classList.contains('hidden');
+  overlay.classList.add('hidden');
+  overlay.toggleAttribute('inert', true);
   document.body.style.overflow = '';
   if (window.__dossMap) { try { window.__dossMap.remove(); } catch (e) {} window.__dossMap = null; }
+  if (wasOpen) openDossier.__prevFocus?.focus?.();
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDossier(); });
 $('#dossier-overlay').addEventListener('click', e => { if (e.target.id === 'dossier-overlay') closeDossier(); });
@@ -402,9 +421,8 @@ const TILES = {
 function rcls(v) { return v <= 4 ? 'poor' : v <= 6 ? 'fair' : 'good'; }
 function rword(v) { return v <= 4 ? 'POOR' : v <= 6 ? 'FAIR' : 'GOOD'; }
 function rbadge(label, value, sub) {
-  const v = Math.round(value);
-  return `<span class="rbadge rb-${rcls(v)}"><i>${label}</i><b>${typeof value === 'number' && value % 1 ? value.toFixed(1) : value}</b>` +
-         `<u>${sub || rword(v)}</u></span>`;
+  return `<span class="rbadge rb-${rcls(value)}"><i>${label}</i><b>${typeof value === 'number' && value % 1 ? value.toFixed(1) : value}</b>` +
+         `<u>${sub || rword(value)}</u></span>`;
 }
 function satMiniHTML(lat, lon, w = 236, h = 150, z = 17) {
   const scale = 256 * Math.pow(2, z);
@@ -426,7 +444,7 @@ function setBasemap(kind) {
   if (!__map) return;
   if (__baseLayer) __map.removeLayer(__baseLayer);
   __baseLayer = L.tileLayer(TILES[kind][0], { attribution: TILES[kind][1],
-    maxZoom: 18, maxNativeZoom: kind === 'dark' ? 15 : 18 }).addTo(__map);
+    noWrap: true, maxZoom: 18, maxNativeZoom: kind === 'dark' ? 15 : 18 }).addTo(__map);
   __baseLayer.bringToBack();
   document.querySelectorAll('#base-mode button').forEach(b =>
     b.classList.toggle('active', b.dataset.base === kind));
@@ -461,11 +479,11 @@ function rebuildMarkers() {
       };
       const mk = L.circleMarker([a.lat, a.lon], base).addTo(__map).bindPopup(
         satMiniHTML(a.lat, a.lon) +
-        `<b>${a.carries || 'Unnamed'}</b><br>over ${a.crosses || '—'}<br>` +
+        `<b>${esc(a.carries || 'Unnamed')}</b><br>over ${esc(a.crosses || '—')}<br>` +
         `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span>` +
         `<span class="rduel">${rbadge('RECORD', a.recorded)}<em>vs</em>${rbadge('PHYSICS', a.pred)}</span>` +
-        `<span class="mono" style="font-size:10px;color:#6A7088">BUILT ${a.built || '—'} | ${fmt(a.adt)} VEHICLES/DAY | ${(a.material || '').toUpperCase()}</span><br>` +
-        `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`,
+        `<span class="mono" style="font-size:10px;color:#6A7088">BUILT ${a.built || '—'} | ${fmt(a.adt)} VEHICLES/DAY | ${esc((a.material || '').toUpperCase())}</span><br>` +
+        `<a href="#docket" onclick="openDossier('${esc(a.sid)}');return false;">open dossier</a>`,
         { maxWidth: 260, minWidth: 240 });
       mk.__base = base; mk.__band = band;
       __markers[a.sid] = mk;
@@ -513,41 +531,59 @@ function applyMarkerFilter() {
 
 /* ============ case file: washington ============ */
 function renderWashington() {
-  const w = (state.eventsRI || state.events).washington;
   const v = $('#paper-washington');
-  if (!w) { v.innerHTML = '<p>No featured case.</p>'; return; }
-  const dy = w.dissent_by_year;
-  const years = Object.keys(dy).sort();
+  const X = state.exhibit;
+  if (!X || !X.catch) { v.innerHTML = '<p>No featured case on file.</p>'; return; }
+  const c = X.catch, dy = c.dissent_years;
+  const first = dy.length ? dy[dy.length - 1] : null;
+  const verdictWord = c.kind === 'closed' ? 'closed the structure' :
+    `filed a ${c.to_rating}`;
   v.innerHTML = `
     <div class="feature-banner">
-      <p class="mono">STRUCTURE ${w.sid} | PROVIDENCE, RHODE ISLAND | EMERGENCY CLOSURE 11 DEC 2023</p>
-      <h3>Rated 4, unchanged, from 2019 to 2023.</h3>
-      <p>With training frozen at 2015 and no knowledge of what came after, DISSENT placed this bridge inside its
-      top-15% alert budget every year from 2018 on: <span class="big-lead">5 years</span> before the December 2023
-      emergency closure, 6 years before the federal record caught up in 2024.</p>
+      <p class="mono">EXHIBIT A | THE CATCH | ${esc(c.state_name).toUpperCase()} STRUCTURE ${esc(c.sid)} | ${esc(c.carries)} OVER ${esc(c.crosses).toUpperCase()}</p>
+      <h3>The record said ${first ? first[1] : c.from_rating}. Physics said ${first ? first[2].toFixed(1) : ''}.
+      In ${c.event_year} the inspectors ${verdictWord}.</h3>
+      <p>Trained only to ${X.train_end} and blind to everything after, the model held this structure inside its
+      top-${Math.round(X.budget * 100)}% alert budget <span class="big-lead">${c.lead} years</span>
+      before the official record moved.</p>
     </div>
-    ${trajChart(w.traj, w.cps, { markers: [{ year: 2023.95, label: 'emergency closure' }] })}
-    ${figbar(LEG.record + LEG.physics + LEG.cp, 'The federal record for structure ' + w.sid + ', as filed.')}
+    ${trajChart(c.traj, c.cps, { markers: [{ year: c.event_year, label: 'the record catches up' }] })}
+    ${figbar(LEG.record + LEG.physics + LEG.bandc + LEG.cp,
+             'The federal record for structure ' + esc(c.sid) + ', as filed, 1992 to ' + c.event_year + '.')}
     <div class="two">
-      <div class="card"><h4>What the record claimed</h4>
-        <p>Condition rating <b>4 (poor), unchanged from 2019 through 2023</b>. Open to roughly 90,000 vehicles a day.
-        In December 2023 inspectors found failed anchor tie-downs; the westbound span was closed within hours and
-        the 2024 federal file finally caught up: <b>rating 1, closed</b>.</p></div>
-      <div class="card"><h4>What the model saw (before the event)</h4>
+      <div class="card"><h4>The years the record stood above the evidence</h4>
         <ul class="attr">
-          <li>2015-2023: physics held ${Math.min(...years.map(y => dy[y].pred)).toFixed(1)}-${Math.max(...years.map(y => dy[y].pred)).toFixed(1)}
-            against a record frozen at 4<b>every year</b></li>
-          <li>2018: first year inside the top-15% docket budget<b>docketed</b></li>
-          <li>${years.reduce((m, y) => dy[y].pred < dy[m].pred ? y : m, years[0])}: physics minimum,
-            ${Math.min(...years.map(y => dy[y].pred)).toFixed(1)}<b>low point</b></li>
-          <li>State dissent: zero throughout. Severity carried it<b>the I-35W clause</b></li>
+          ${dy.slice().reverse().map(d => `<li>${d[0]}: record <b>${d[1]}</b> against a physics ceiling of ${d[3].toFixed(1)}
+            <b>dissent ${(d[1] - d[3]).toFixed(1)}</b></li>`).join('')}
         </ul>
-        <p class="note">Ninety thousand vehicles a day crossed a structure whose rating never moved for five years.
-        The physics-severity channel (the I-35W clause) kept its docket priority high while the record never moved.</p></div>
+        <p class="note">A formal state dissent: the recorded rating sat above the upper bound of the calibrated
+        physics interval, ${dy.length} filings in a row.</p></div>
+      <div class="card"><h4>Then the paperwork caught up</h4>
+        <p>${esc(c.material)}, built ${c.built || 'unknown'}, carrying ${fmt(c.adt)} vehicles a day.
+        In ${c.event_year} the official rating ${c.kind === 'closed' ? 'ended in closure' :
+          'fell from <b>' + c.from_rating + '</b> to <b>' + c.to_rating + '</b>'} in a single filing:
+        the drop the physics witness had been signalling since ${dy.length ? dy[dy.length - 1][0] : X.train_end}.</p>
+        <p class="note">This is one of ${X.n_flagged} held-out events, from ${X.n_test} after 2018, that the frozen
+        model placed inside its budget before the record moved.</p></div>
     </div>
-    <p class="note">Everything above is computed from the public FHWA record with the model trained only on data
-    through 2015. The closure itself entered the federal file in 2024, after the event: exactly the
-    "record forced to catch up" pattern DISSENT exists to detect.</p>`;
+
+    <h2 style="margin-top:26px">And the one it missed.</h2>
+    <p>A forensic tool that only shows its wins is not a forensic tool. On 11 December 2023 the Washington Bridge
+    in Providence, carrying roughly 90,000 vehicles a day, was closed within hours of inspectors finding failed
+    anchor tie-downs. Its federal record had read <b>4</b>, unchanged, since 2008.</p>
+    ${X.miss ? trajChart(X.miss.traj, X.miss.cps, { markers: [{ year: 2023.95, label: 'emergency closure' }] }) : ''}
+    ${X.miss ? figbar(LEG.record + LEG.physics + LEG.cp,
+        'The federal record for structure ' + esc(X.miss.sid) + ', Providence, Rhode Island.') : ''}
+    <div class="card"><h4>Why we did not catch it, stated plainly</h4>
+      <p>Our physics witness rated this bridge <b>between 4.6 and 5.6</b> across those years: slightly
+      <b>better</b> than the record, not worse. It filed no dissent, and this event is counted as a miss in the
+      ${X.n_test}-event holdout above. The failure was in anchor tie-down details inside the structure, which no
+      feature built from age, traffic and weather can see.</p>
+      <p class="note">This is the precise gap the satellite displacement channel exists to close in the full
+      design, and the reason the Morandi replay in Exhibit B demonstrates that detector separately.</p></div>
+
+    <p class="note">Everything above is computed from the public FHWA record with the model frozen at ${X.train_end}.
+    Both cases are shown because the honest measure of a second opinion is what it catches and what it does not.</p>`;
 }
 
 /* ============ detector replay: morandi ============ */
@@ -559,23 +595,33 @@ function renderMorandi() {
     afterwards (Milillo et al. 2019) found that a scatterer on the deck beside the failed pier had accelerated
     from about 10 to 70 mm/yr starting 12 March 2017, seventeen months before collapse. Press RUN THE DETECTOR:
     the same Bayesian online changepoint detector that powers DISSENT's trend channel runs <b>live in your
-    browser</b> over that published series, month by month, knowing nothing of what comes next.</p>
+    browser</b> over a reconstruction of that published finding, month by month, knowing nothing of what comes next.</p>
     <div id="morandi-chart"></div>
-    ${figbar('<span><i style="background:#3A5CA8"></i>LOS velocity (mm/yr), drawn from the published record</span>' + LEG.cp,
+    ${figbar('<span><i style="background:#3A5CA8"></i>LOS velocity (mm/yr), reconstructed from the published finding</span>' + LEG.cp,
              'After Milillo et al. 2019; the finding is contested by Lanari et al. 2020.')}
     <div class="ctrlbar">
       <button class="btn" id="morandi-play">RUN THE DETECTOR</button>
       <button class="btn secondary" id="morandi-reset">RESET</button>
-      <span class="ctrl-status" id="morandi-status">DETECTOR IDLE</span>
+      <span class="ctrl-status" id="morandi-status">THE DETECTOR IS WAITING</span>
     </div>
-    <p class="note">Honesty note: the precursor finding is scientifically contested (Lanari et al. 2020 reprocessed
+    <p class="note">Honesty note: this series is a parametric reconstruction of the published result, not the authors' raw data, and the precursor finding is itself scientifically contested (Lanari et al. 2020 reprocessed
     the same radar data and disagree). DISSENT's design cites both sides, which is exactly why no single channel
     is load-bearing in the fused score.</p>`;
   drawMorandi(0);
   let timer = null, step = 0;
   const play = $('#morandi-play'), status = $('#morandi-status');
+  renderMorandi.stop = () => {
+    if (timer) { clearInterval(timer); timer = null; }
+    play.disabled = false;
+    status.textContent = 'THE DETECTOR IS WAITING';
+  };
   play.onclick = () => {
     if (timer) return;
+    if (step >= state.morandi.series.length) {
+      step = 0;
+      window.__morandiToasted = false;
+      drawMorandi(0);
+    }
     play.disabled = true;
     status.innerHTML = '<span class="live">&#9679;</span> DETECTOR RUNNING';
     timer = setInterval(() => {
@@ -586,7 +632,7 @@ function renderMorandi() {
       sbCenter(`BOCPD | t=${t.toFixed(2)} | P(changepoint)=${(window.__morandiLastCp || 0).toFixed(3)}`);
       if (window.__morandiFired && !window.__morandiToasted) {
         window.__morandiToasted = true;
-        toast('Filed. 84 on the docket.');
+        toast(`Filed. ${state.summary.bands.inspect + state.summary.bands.schedule + state.summary.bands.watch} on the docket.`);
       }
       if (step >= m.series.length) {
         clearInterval(timer); timer = null; play.disabled = false;
@@ -688,13 +734,13 @@ function renderMethod() {
         events were mined from the four-state trajectories (sudden drops of 2+ rating steps, or closures). The ${s.n_events_test} that
         occur after 2018 are pure holdout: the frozen model flagged ${Math.round(s.event_recall * 100)}% of them inside its
         top-${Math.round(s.budget_frac * 100)}% budget (${(s.event_recall / s.budget_frac).toFixed(1)}x better than random), with a median
-        lead of ${Math.round(s.median_lead)} years, including the Washington Bridge every year from 2018 on.</p></div>
+        lead of ${s.median_lead} years, and a best verified lead of ${state.exhibit ? state.exhibit.catch.lead : 9} years. Exhibit A shows one of those catches beside a case the model missed.</p></div>
       <div class="card"><h4>Honest limits, stated plainly</h4>
         <p>Interval coverage on post-2018 data is ${Math.round(s.coverage * 100)}% against a 90% target: the small shortfall is
         distribution shift, and we report it rather than retune on the test years. Several missed events are
         administrative closures (bypassed or replaced structures) that condition physics cannot see. The satellite
         displacement channel of the full design is not in this pilot (Rhode Island lacks free processed InSAR;
-        the Morandi replay demonstrates that channel's detector on the published record instead). Structures five years old or newer (${s.n_newbuild || 0} of them) receive
+        the Morandi replay demonstrates that channel's detector on a reconstruction of the published finding instead). Structures five years old or newer (${s.n_newbuild || 0} of them) receive
         no verdict at all: their age features sit outside the training support, so the physics witness abstains
         rather than guess. Ratings are coarse, inspector-subjective labels, which is the entire reason a second
         opinion is worth building.</p></div>
@@ -718,72 +764,106 @@ function renderMethod() {
       report this build delivers on.</p>
       <div class="credit-line">
         TEAM NEXUS NETWORK | DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING (CYBER SECURITY)<br>
-        AI INNOVATION CHALLENGE 2026 | BATTLE OF INTELLIGENCE | ROUND 3 : AI EVOLUTION<br>
+        AI INNOVATION CHALLENGE 2026 | BATTLE OF INTELLIGENCE | ROUND 3: AI EVOLUTION<br>
         DATA: FHWA NATIONAL BRIDGE INVENTORY | OPEN-METEO (ERA5) | MILILLO ET AL. 2019 / LANARI ET AL. 2020 |
-        BASEMAP: OPENSTREETMAP CONTRIBUTORS, CARTO | RI BOUNDARY: US CENSUS (PUBLIC DOMAIN) |
+        BASEMAP AND IMAGERY: ESRI, HERE, GARMIN, MAXAR | &copy; OPENSTREETMAP CONTRIBUTORS | RI BOUNDARY: US CENSUS (PUBLIC DOMAIN) |
         SET IN FRAUNCES, SOURCE SERIF AND COURIER PRIME
       </div>
     </div>`;
 }
 
 /* ============ the national snapshot layer ============ */
-const nat = { loaded: false, loading: false, mode: 'fleet',
+const nat = { loaded: false, loading: false, promise: null, mode: 'fleet',
               n: 0, meta: null, mx: null, my: null, cond: null,
               built: null, adt: null, stIdx: null, grid: null,
               canvas: null };
 
 async function loadNational() {
-  if (nat.loaded || nat.loading) return nat.loaded;
-  nat.loading = true;
-  nat.meta = await fetch('data/national_meta.json').then(r => r.json());
-  const total = nat.meta.total;
-  nat.mx = new Float32Array(total); nat.my = new Float32Array(total);
-  nat.cond = new Int8Array(total); nat.built = new Uint16Array(total);
-  nat.adt = new Uint32Array(total); nat.stIdx = new Uint8Array(total);
-  nat.lat = new Float32Array(total); nat.lon = new Float32Array(total);
-  nat.grid = new Map();
-  const res = await fetch('data/national.bin');
-  const reader = res.body.getReader();
-  let carry = new Uint8Array(0);
-  let i = 0, lastDraw = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    let chunk;
-    if (carry.length) {
-      chunk = new Uint8Array(carry.length + value.length);
-      chunk.set(carry); chunk.set(value, carry.length);
-    } else chunk = value;
-    const usable = chunk.length - (chunk.length % 16);
-    const dv = new DataView(chunk.buffer, chunk.byteOffset, usable);
-    for (let off = 0; off + 16 <= usable && i < total; off += 16, i++) {
-      const lat = dv.getFloat32(off, true), lon = dv.getFloat32(off + 4, true);
-      nat.lat[i] = lat; nat.lon[i] = lon;
-      nat.cond[i] = dv.getInt8(off + 8);
-      nat.built[i] = dv.getUint16(off + 9, true);
-      nat.adt[i] = dv.getUint32(off + 11, true);
-      nat.stIdx[i] = dv.getUint8(off + 15);
-      nat.mx[i] = (lon + 180) / 360;
-      const s = Math.sin(lat * Math.PI / 180);
-      nat.my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
-      const key = (Math.floor(lat * 4)) * 4096 + Math.floor((lon + 180) * 4);
-      let cell = nat.grid.get(key);
-      if (!cell) nat.grid.set(key, cell = []);
-      cell.push(i);
+  if (nat.loaded) return true;
+  if (nat.promise) return nat.promise;
+  nat.promise = (async () => {
+    nat.loading = true;
+    try {
+      const metaRes = await fetch('data/national_meta.json');
+      if (!metaRes.ok) throw new Error(metaRes.status);
+      nat.meta = await metaRes.json();
+      if (nat.meta.stride !== 16) {
+        toast(`NATIONAL RECORD FORMAT MISMATCH (STRIDE ${nat.meta.stride}, EXPECTED 16). REFUSING TO GUESS.`);
+        nat.promise = null;
+        return false;
+      }
+      const total = nat.meta.total;
+      nat.mx = new Float32Array(total); nat.my = new Float32Array(total);
+      nat.cond = new Int8Array(total); nat.built = new Uint16Array(total);
+      nat.adt = new Uint32Array(total); nat.stIdx = new Uint8Array(total);
+      nat.lat = new Float32Array(total); nat.lon = new Float32Array(total);
+      nat.grid = new Map();
+      let stream;
+      if (typeof DecompressionStream === 'undefined') {
+        const res = await fetch('data/national.bin');
+        if (!res.ok) throw new Error(res.status);
+        stream = res.body;
+      } else {
+        const gz = await fetch('data/national.bin.gz');
+        if (gz.ok) {
+          stream = gz.body.pipeThrough(new DecompressionStream('gzip'));
+        } else {
+          const res = await fetch('data/national.bin');
+          if (!res.ok) throw new Error(res.status);
+          stream = res.body;
+        }
+      }
+      const reader = stream.getReader();
+      let carry = new Uint8Array(0);
+      let i = 0, lastDraw = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        let chunk;
+        if (carry.length) {
+          chunk = new Uint8Array(carry.length + value.length);
+          chunk.set(carry); chunk.set(value, carry.length);
+        } else chunk = value;
+        const usable = chunk.length - (chunk.length % 16);
+        const dv = new DataView(chunk.buffer, chunk.byteOffset, usable);
+        for (let off = 0; off + 16 <= usable && i < total; off += 16, i++) {
+          const lat = dv.getFloat32(off, true), lon = dv.getFloat32(off + 4, true);
+          nat.lat[i] = lat; nat.lon[i] = lon;
+          nat.cond[i] = dv.getInt8(off + 8);
+          nat.built[i] = dv.getUint16(off + 9, true);
+          nat.adt[i] = dv.getUint32(off + 11, true);
+          nat.stIdx[i] = dv.getUint8(off + 15);
+          nat.mx[i] = (lon + 180) / 360;
+          const s = Math.sin(lat * Math.PI / 180);
+          nat.my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+          const key = (Math.floor(lat * 4)) * 4096 + Math.floor((lon + 180) * 4);
+          let cell = nat.grid.get(key);
+          if (!cell) nat.grid.set(key, cell = []);
+          cell.push(i);
+        }
+        carry = chunk.slice(usable);
+        nat.n = i;
+        if (nat.mode === 'national' && i - lastDraw > 60000) {
+          lastDraw = i;
+          $('#map-legend').innerHTML =
+            `<div>STREAMING THE NATIONAL RECORD… ${Math.round(i / total * 100)}%</div>`;
+          try { drawNational(); } catch (err) { /* draw must never kill the stream */ }
+          await new Promise(r => setTimeout(r, 0));
+        }
+      }
+      nat.n = i;
+      if (i !== total) console.warn(`national record: parsed ${i} of ${total} declared structures; using the parsed count`);
+      nat.loaded = true;
+      return true;
+    } catch (err) {
+      toast('NATIONAL RECORD UNAVAILABLE. RETRY.');
+      nat.promise = null;
+      return false;
+    } finally {
+      nat.loading = false;
     }
-    carry = chunk.slice(usable);
-    nat.n = i;
-    if (nat.mode === 'national' && i - lastDraw > 60000) {
-      lastDraw = i;
-      $('#map-legend').innerHTML =
-        `<div>STREAMING THE NATIONAL RECORD… ${Math.round(i / total * 100)}%</div>`;
-      try { drawNational(); } catch (err) { /* draw must never kill the stream */ }
-      await new Promise(r => setTimeout(r, 0));
-    }
-  }
-  nat.n = i;
-  nat.loaded = true; nat.loading = false;
-  return true;
+  })();
+  return nat.promise;
 }
 
 function drawNational() {
@@ -800,10 +880,13 @@ function drawNationalInner() {
     __map.getPanes().overlayPane.appendChild(nat.canvas);
   }
   const size = __map.getSize();
-  nat.canvas.width = size.x; nat.canvas.height = size.y;
+  const dpr = window.devicePixelRatio || 1;
+  nat.canvas.width = size.x * dpr; nat.canvas.height = size.y * dpr;
+  nat.canvas.style.width = size.x + 'px'; nat.canvas.style.height = size.y + 'px';
   L.DomUtil.setPosition(nat.canvas, __map.containerPointToLayerPoint([0, 0]));
   const ctx = nat.canvas.getContext('2d');
-  ctx.clearRect(0, 0, size.x, size.y);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, nat.canvas.width, nat.canvas.height);
   const z = __map.getZoom();
   const scale = 256 * Math.pow(2, z);
   // calibrate against Leaflet's own projection so the math is exact
@@ -815,10 +898,11 @@ function drawNationalInner() {
   const dx = refCp.x - refMx * scale, dy = refCp.y - refMy * scale;
   const px = z >= 9 ? 3 : z >= 7 ? 2 : 1;
   if (px <= 2) {
-    // direct pixel-buffer path: all points in ~15ms
-    const img = ctx.createImageData(size.x, size.y);
+    // direct pixel-buffer path: all points in ~15ms, in device pixels
+    const dScale = scale * dpr, dDx = dx * dpr, dDy = dy * dpr, dPx = Math.max(1, Math.round(px * dpr));
+    const W = nat.canvas.width, H = nat.canvas.height;
+    const img = ctx.createImageData(W, H);
     const data = img.data;
-    const W = size.x, H = size.y;
     // class RGBA: good steel (dim), fair ochre, poor crimson; poor drawn last wins
     const R = [58, 184, 198], G = [92, 134, 40], B = [168, 45, 60], A = [150, 235, 255];
     for (let pass = 0; pass < 3; pass++) {
@@ -826,9 +910,10 @@ function drawNationalInner() {
         const c = nat.cond[i];
         const cls = c <= 4 ? 2 : c <= 6 ? 1 : 0;
         if (cls !== pass) continue;
-        const x = (nat.mx[i] * scale + dx) | 0, y = (nat.my[i] * scale + dy) | 0;
+        const x = (nat.mx[i] * dScale + dDx) | 0, y = (nat.my[i] * dScale + dDy) | 0;
         if (x < 0 || y < 0 || x >= W - 1 || y >= H - 1) continue;
-        for (let oy = 0; oy < px; oy++) for (let ox = 0; ox < px; ox++) {
+        for (let oy = 0; oy < dPx; oy++) for (let ox = 0; ox < dPx; ox++) {
+          if (x + ox >= W || y + oy >= H) continue;
           const p = ((y + oy) * W + x + ox) * 4;
           data[p] = R[pass]; data[p + 1] = G[pass];
           data[p + 2] = B[pass]; data[p + 3] = A[pass];
@@ -837,6 +922,7 @@ function drawNationalInner() {
     }
     ctx.putImageData(img, 0, 0);
   } else {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const colors = ['rgba(58,92,168,0.6)', '#B8862D', '#C6283C'];
     for (let pass = 0; pass < 3; pass++) {
       ctx.fillStyle = colors[pass];
@@ -849,6 +935,7 @@ function drawNationalInner() {
         ctx.fillRect(x, y, px, px);
       }
     }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 }
 let __natRaf = false;
@@ -881,6 +968,7 @@ async function setMapMode(mode) {
     b.classList.toggle('active', b.dataset.mode === mode));
   if (mode === 'national') {
     Object.values(__markers).forEach(mk => __map.removeLayer(mk));
+    __map.setMaxBounds([[-85, -180], [85, 180]]);
     __map.invalidateSize();
     setTimeout(() => {
       __map.invalidateSize();
@@ -890,6 +978,7 @@ async function setMapMode(mode) {
     __map.on('move zoom moveend zoomend resize', drawNationalLive);
     __map.on('click', natClick);
     const ok = await loadNational();
+    if (nat.mode !== 'national') return;
     if (!ok) { setMapMode('fleet'); return; }
     natLegend();
     sbCenter(`NATIONAL SNAPSHOT 2025 | ${fmt(nat.meta.total)} STRUCTURES | ${fmt(nat.meta.poor_total)} POOR`);
@@ -897,6 +986,7 @@ async function setMapMode(mode) {
   } else {
     __map.off('move zoom moveend zoomend resize', drawNationalLive);
     __map.off('click', natClick);
+    __map.setMaxBounds(null);
     if (nat.canvas) nat.canvas.getContext('2d').clearRect(0, 0, nat.canvas.width, nat.canvas.height);
     Object.values(__markers).forEach(mk => mk.addTo(__map));
     applyMarkerFilter();
@@ -924,7 +1014,7 @@ function natClick(e) {
   const c = nat.cond[best];
   L.popup({ maxWidth: 260, minWidth: 240 }).setLatLng([nat.lat[best], nat.lon[best]])
     .setContent(satMiniHTML(nat.lat[best], nat.lon[best]) +
-      `<b>${nat.meta.states[nat.stIdx[best]]}</b> | bridge or culvert | 2025 snapshot` +
+      `<b>${esc(nat.meta.states[nat.stIdx[best]])}</b> | bridge or culvert | 2025 snapshot` +
       `<span class="rduel">${rbadge('CONDITION', c)}</span>` +
       `built ${nat.built[best] || 'unknown'} | ADT ${fmt(nat.adt[best] || null)}<br>` +
       `<span style="font-size:10px">deep audit runs in the four fleet states</span>`)
@@ -932,25 +1022,42 @@ function natClick(e) {
 }
 
 /* ============ jurisdictions ============ */
+const jurCache = {};
 async function switchJur(st) {
   if (st === state.jur || switchJur.__busy) return;
   switchJur.__busy = true;
-  $('#panel-title').textContent = `${(state.summary.state_names[st] || st).toUpperCase()} DOCKET | READING THE RECORD…`;
-  document.querySelectorAll('.jurchip').forEach(b => b.disabled = true);
-  $('#docket-list').innerHTML = '<div class="bootload mono">READING THE ' + st + ' FEDERAL RECORD…' +
-    '<div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
-  const [assets, summary, events] = await Promise.all(
-    [`assets_${st}.json`, `summary_${st}.json`, `events_${st}.json`]
-      .map(f => fetch('data/' + f).then(r => r.json())));
-  state.jur = st;
-  Object.assign(state, { assets, summary, events });
-  state.bandFilter = 'priority'; state.query = '';
-  state.sortKey = 'rank'; state.sortAsc = true;
-  renderChrome();
-  renderDocketTools();
-  renderDocketTable();
-  rebuildMarkers();
-  switchJur.__busy = false;
+  try {
+    $('#panel-title').textContent = `${(state.summary.state_names[st] || st).toUpperCase()} DOCKET | READING THE RECORD…`;
+    document.querySelectorAll('.jurchip').forEach(b => b.disabled = true);
+    $('#docket-list').innerHTML = '<div class="bootload mono">READING THE ' + st + ' FEDERAL RECORD…' +
+      '<div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
+    let data;
+    try {
+      data = await (jurCache[st] ||= Promise.all(
+        [`assets_${st}.json`, `summary_${st}.json`, `events_${st}.json`]
+          .map(f => fetch('data/' + f).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }))));
+    } catch (err) {
+      delete jurCache[st];
+      throw err;
+    }
+    const [assets, summary, events] = data;
+    state.jur = st;
+    Object.assign(state, { assets, summary, events });
+    state.bandFilter = 'priority'; state.query = '';
+    state.sortKey = 'rank'; state.sortAsc = true;
+    renderChrome();
+    renderDocketTools();
+    renderDocketTable();
+    rebuildMarkers();
+  } catch (err) {
+    toast(`COULD NOT READ THE ${st} RECORD. STILL ON ${state.jur}.`);
+    renderChrome();
+    renderDocketTools();
+    renderDocketTable();
+  } finally {
+    switchJur.__busy = false;
+    document.querySelectorAll('.jurchip').forEach(b => b.disabled = false);
+  }
 }
 function renderJurChips() {
   const el = $('#jur-chips');
@@ -969,10 +1076,10 @@ function renderWorld() {
       `<div class="cs"><b>${s.n}</b><span>${s.label}</span></div>`).join('')}</div>
     ${w.cases.map(c => `
       <div class="case-card" id="case-${c.lat}">
-        <h3>${c.name}</h3>
-        <p class="case-meta">${c.place.toUpperCase()} | ${c.date.toUpperCase()} | ${c.toll ? '<b>' + c.toll + ' DEAD</b>' : 'NO DEATHS'}</p>
-        <p><b>The signal that existed:</b> ${c.signal}</p>
-        <p class="missed">Why nothing happened: ${c.missed}</p>
+        <h3>${esc(c.name)}</h3>
+        <p class="case-meta">${esc(c.place.toUpperCase())} | ${c.date.toUpperCase()} | ${c.toll ? '<b>' + c.toll + ' DEAD</b>' : 'NO DEATHS'}</p>
+        <p><b>The signal that existed:</b> ${esc(c.signal)}</p>
+        <p class="missed">Why nothing happened: ${esc(c.missed)}</p>
       </div>`).join('')}
     <p class="world-note">Each case is documented by an official investigation or peer-reviewed study; sources are cited
     in the Method page and in the Round 2 report inside the repository. The pattern is the argument: the warning existed,
@@ -985,6 +1092,7 @@ function initWorldMap() {
   __worldMap.setView([28, 15], 2);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Esri, HERE, Garmin | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    noWrap: true,
     maxZoom: 10,
   }).addTo(__worldMap);
   state.world.cases.forEach(c => {
@@ -992,13 +1100,14 @@ function initWorldMap() {
       fillColor: '#B23348', fillOpacity: 0.95, className: 'mk-pulse' })
       .addTo(__worldMap)
       .bindPopup(satMiniHTML(c.lat, c.lon, 236, 140, 16) +
-                 `<b>${c.name}</b><br>${c.place}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
+                 `<b>${esc(c.name)}</b><br>${esc(c.place)}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
                  `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView();return false;">read the case</a>`,
                  { maxWidth: 260, minWidth: 240 });
   });
   L.circleMarker([41.68, -71.5], { radius: 9, color: '#FAF8F4', weight: 1.5,
     fillColor: '#3A5CA8', fillOpacity: 0.95 }).addTo(__worldMap)
-    .bindPopup('<b>The pilot fleet</b><br>RI, VT, NH, DE: 9,546 structures under audit<br><a href="#docket">open the docket</a>');
+    .bindPopup('<b>The pilot fleet</b><br>RI, VT, NH, DE: ' + fmt(state.summary.n_structures) +
+               ' structures on file<br><a href="#docket">open the docket</a>');
   $('#world-legend').innerHTML =
     '<div><i style="background:#B23348"></i>DOCUMENTED COLLAPSE</div>' +
     '<div><i style="background:#3A5CA8"></i>LIVE PILOT (THE DOCKET)</div>';
@@ -1007,13 +1116,15 @@ function initWorldMap() {
 /* ============ routing & boot ============ */
 function route() {
   const view = (location.hash || '#docket').slice(1);
+  const target = document.getElementById('view-' + view) || document.getElementById('view-docket');
+  const effective = target.id.slice('view-'.length);
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('[data-nav]').forEach(a =>
-    a.classList.toggle('active', a.dataset.nav === view));
-  const target = $('#view-' + view) || $('#view-docket');
+    a.classList.toggle('active', a.dataset.nav === effective));
   target.classList.add('active');
   target.scrollTop = 0;
   closeDossier();
+  if (target.id !== 'view-morandi') renderMorandi.stop?.();
   if ((target.id === 'view-docket') && __map) setTimeout(() => __map.invalidateSize(), 80);
   if (target.id === 'view-world') {
     initWorldMap();
@@ -1024,13 +1135,16 @@ window.addEventListener('hashchange', route);
 $('#print-btn').onclick = () => window.print();
 
 async function boot() {
+  route();
+  $('#dossier-overlay').setAttribute('aria-label', 'Dissent dossier');
+  $('#dossier-overlay').toggleAttribute('inert', true);
   try {
-    const [assets, summary, events, morandi, world] = await Promise.all(
-      ['assets_RI.json', 'summary_RI.json', 'events_RI.json', 'morandi.json', 'global.json']
+    const [assets, summary, events, morandi, world, exhibit] = await Promise.all(
+      ['assets_RI.json', 'summary_RI.json', 'events_RI.json', 'morandi.json', 'global.json', 'exhibit.json']
         .map(f => fetch('data/' + f).then(r => r.json())));
-    Object.assign(state, { assets, summary, events, morandi, world, eventsRI: events });
+    Object.assign(state, { assets, summary, events, morandi, world, exhibit, eventsRI: events });
   } catch (e) {
-    $('#docket-list').innerHTML = '<div class="empty-state">FAILED TO LOAD THE FEDERAL RECORD — RELOAD THE CONSOLE.</div>';
+    $('#docket-list').innerHTML = '<div class="empty-state">FAILED TO LOAD THE FEDERAL RECORD. RELOAD THE CONSOLE.</div>';
     return;
   }
   renderChrome();

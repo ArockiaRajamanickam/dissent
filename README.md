@@ -7,12 +7,10 @@ AI Innovation Challenge 2026, Battle of Intelligence, Round 3: AI Evolution.
 
 The map carries a NATIONAL toggle plotting the entire 2025 federal file:
 all 621,137 rated structures in the United States (41,319 poor), packed into a
-9.9 MB binary and drawn client-side on a canvas layer — no backend, nothing to
-cold-start. The deep audit runs in a four-state fleet: Rhode Island, Vermont, New Hampshire and Delaware —
-234,801 real inspection records across 9,766 structures, one pooled model,
-per-state dockets with a jurisdiction switcher in the console. Validated on
-182 held-out post-2018 events: 29% flagged early inside a top-15% budget
-(about 2x chance), median lead six years.
+9.9 MB binary and drawn client-side on a canvas layer: no backend, nothing to
+cold-start. The deep audit runs in a four-state fleet (Rhode Island, Vermont, New
+Hampshire and Delaware): 234,801 real inspection filings across 9,765 structures,
+one pooled model frozen at 2015, per-state dockets with a jurisdiction switcher.
 
 Infrastructure does not fail silently. It fails contradicted. DISSENT maintains two
 independent accounts of every bridge in an inventory: the Paper Witness (the official
@@ -22,30 +20,29 @@ opinion). A calibrated disagreement between the two is the product.
 
 This repository is the working model promised in our Round 2 report
 (`docs/NEXUS_NETWORK_Round2_Solution_Report.pdf`), built on real public data for the
-pilot inventory the report proposed: one full US state. We chose Rhode Island
-deliberately: the smallest bridge inventory in the country and the worst-rated one,
-including the Washington Bridge, whose westbound span was emergency-closed in
-December 2023.
+pilot inventory the report proposed, now extended to four states. Rhode Island was the
+first target deliberately: the smallest bridge inventory in the country and the
+worst-rated one.
 
 ## Headline results (all on real, public, held-out data)
 
-- 25,813 real inspection records, 965 open structures, 34 annual FHWA National
-  Bridge Inventory files (1992-2025), parsed end to end.
-- The Blind Re-Inspector (gradient boosting over physics-only features: age, works
-  history, traffic, structural form, and real ERA5 weather stressors) reaches
-  **MAE 0.68 rating steps** on post-2018 data it never saw, with split-conformal
-  intervals at **87% empirical coverage** (90% nominal; the gap is distribution
-  shift, reported rather than retuned away).
-- 281 "record forced to catch up" events mined from the trajectories; the 14 that
-  occur after 2018 form a pure holdout. The frozen-at-2015 model flags **36% of
-  them inside a top-15% alert budget (2.4x random)**, median lead 3 years.
-- **The Washington Bridge was inside the docket's top budget band every year from
-  2018 onward: six years of lead time** before the December 2023 emergency closure,
-  while the official record held a flat rating of 4 the entire time.
-- The trend channel is a from-scratch Adams-MacKay Bayesian online changepoint
-  detector; the deployed site runs the same algorithm live in the browser over the
-  published Morandi Bridge precursor series (Milillo et al. 2019, contested by
-  Lanari et al. 2020, and the page says so).
+- **234,801 real inspection filings** across four states (Rhode Island, Vermont, New
+  Hampshire, Delaware), 9,765 structures, 136 annual FHWA National Bridge Inventory
+  files, 1992-2025, joined to real ERA5 weather histories.
+- The Blind Re-Inspector (physics-only features, never shown an inspector's opinion) reaches
+  **MAE 0.7 rating steps** on post-2018 data it never saw, with split-conformal intervals at
+  **89.2% empirical coverage** against a 90% target. We report the shortfall rather
+  than retune on the test years.
+- **1,835 "record forced to catch up" events** mined from the trajectories. The
+  **166** that occur after 2018 are pure holdout: the frozen-at-2015 model
+  flagged **23% of them inside a top-15% alert
+  budget (1.5x chance)**, median lead 3.5 years.
+- **Best verified catch: 9 years.** A Vermont structure whose record read 8 while the physics witness
+  held 6; in 2025 the inspectors filed a 3. It is Exhibit A in the console, shown beside a case the
+  model missed (the Washington Bridge, closed December 2023) because a second opinion is only worth
+  what its misses cost.
+- The console also plots the **entire 2025 national file: 621,137 rated structures
+  (41,319 poor)**, drawn client-side from a 9.9 MB binary with no backend.
 
 ## Repository layout
 
