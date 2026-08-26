@@ -1,0 +1,59 @@
+{
+  "note": "The forensic record the method is built on. Every case documented by official investigation or peer-reviewed study; citations in the Method page and the Round 2 report.",
+  "scale": [
+    { "n": "623,218", "label": "bridges in the US federal inventory (ASCE 2025)" },
+    { "n": "172,517", "label": "National Highway structures inventoried in India (IBMS)" },
+    { "n": "<20%", "label": "of the world's long-span bridges carry any monitoring (Nature Communications, 2025)" },
+    { "n": "8", "label": "collapses below, four continents, one shared pattern" }
+  ],
+  "cases": [
+    {
+      "name": "Morandi Bridge", "place": "Genoa, Italy", "lat": 44.4257, "lon": 8.8885,
+      "date": "14 Aug 2018", "toll": 43,
+      "signal": "A satellite radar scatterer on the deck beside the failed pier accelerated from about 10 to 70 mm/yr starting March 2017, seventeen months before collapse (Milillo et al. 2019; contested by Lanari et al. 2020).",
+      "missed": "Displacement data, a cable strength-loss assessment and retrofit paperwork sat in separate silos. The retrofit was scheduled, not urgent."
+    },
+    {
+      "name": "I-35W Mississippi River Bridge", "place": "Minneapolis, USA", "lat": 44.9789, "lon": -93.245,
+      "date": "1 Aug 2007", "toll": 13,
+      "signal": "Inspection photographs from 1999 and 2003 already showed visibly bowed gusset plates (NTSB HAR-08/03).",
+      "missed": "The record itself said deficient for years. Nothing forced escalation while construction load was added."
+    },
+    {
+      "name": "FIU pedestrian bridge", "place": "Miami, USA", "lat": 25.7563, "lon": -80.376,
+      "date": "15 Mar 2018", "toll": 6,
+      "signal": "Rapidly growing structural cracks, photographed and discussed by the engineer of record in the days before failure.",
+      "missed": "A meeting held the morning of the collapse concluded the cracks were not a safety concern."
+    },
+    {
+      "name": "Champlain Towers South", "place": "Surfside, USA", "lat": 25.8794, "lon": -80.1214,
+      "date": "24 Jun 2021", "toll": 98,
+      "signal": "A satellite study published in 2020 had identified the site subsiding by about 2 mm/yr in the 1990s (Fiaschi and Wdowinski); a 2018 engineering report documented major structural damage.",
+      "missed": "The subsidence study, the damage report and the deferred repair decisions were never combined."
+    },
+    {
+      "name": "Morbi suspension footbridge", "place": "Gujarat, India", "lat": 22.818, "lon": 70.837,
+      "date": "30 Oct 2022", "toll": 135,
+      "signal": "Reopened four days after a renovation that never replaced or load-tested the original main cables; the inquiry later found 22 of the 49 wires in the failed cable already corroded.",
+      "missed": "No independent check existed that the renovation record matched the physical state."
+    },
+    {
+      "name": "Carola Bridge", "place": "Dresden, Germany", "lat": 51.056, "lon": 13.744,
+      "date": "11 Sep 2024", "toll": 0,
+      "signal": "Hidden hydrogen-induced corrosion of the prestressing steel, progressing for decades inside the one deck not yet refurbished (Marx report, TU Dresden).",
+      "missed": "The expert report concluded the required visual inspections could not have detected it. Partial coverage protects the spans you picked, not the one that fails."
+    },
+    {
+      "name": "Metro Line 12 overpass", "place": "Mexico City, Mexico", "lat": 19.2977, "lon": -99.05,
+      "date": "3 May 2021", "toll": 26,
+      "signal": "Structural concerns on the elevated section were documented repeatedly after the 2017 earthquake, years before the girder failed.",
+      "missed": "Reports and repairs stayed piecemeal; no mechanism tied the accumulating observations to a forced decision."
+    },
+    {
+      "name": "Nanfang'ao Bridge", "place": "Yilan, Taiwan", "lat": 24.5866, "lon": 121.864,
+      "date": "1 Oct 2019", "toll": 6,
+      "signal": "The official investigation found severe corrosion in the suspension rods that years of inspections had not addressed.",
+      "missed": "Inspection responsibility was fragmented across agencies; the corrosion sat in nobody's queue."
+    }
+  ]
+}

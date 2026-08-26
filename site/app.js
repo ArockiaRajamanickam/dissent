@@ -627,6 +627,48 @@ function renderMethod() {
     </div>`;
 }
 
+/* ============ the world: global record ============ */
+let __worldMap = null;
+function renderWorld() {
+  const w = state.world;
+  $('#world-list').innerHTML = `
+    <div class="case-scale">${w.scale.map(s =>
+      `<div class="cs"><b>${s.n}</b><span>${s.label}</span></div>`).join('')}</div>
+    ${w.cases.map(c => `
+      <div class="case-card" id="case-${c.lat}">
+        <h3>${c.name}</h3>
+        <p class="case-meta">${c.place.toUpperCase()} | ${c.date.toUpperCase()} | ${c.toll ? '<b>' + c.toll + ' DEAD</b>' : 'NO DEATHS'}</p>
+        <p><b>The signal that existed:</b> ${c.signal}</p>
+        <p class="missed">Why nothing happened: ${c.missed}</p>
+      </div>`).join('')}
+    <p class="world-note">Each case is documented by an official investigation or peer-reviewed study; sources are cited
+    in the Method page and in the Round 2 report inside the repository. The pattern is the argument: the warning existed,
+    in time, and belonged to nobody. The Rhode Island pilot (marked in blue on the map) is where this program turns the
+    pattern into a working audit.</p>`;
+}
+function initWorldMap() {
+  if (__worldMap || typeof L === 'undefined' || !state.world) return;
+  __worldMap = L.map('worldmap', { scrollWheelZoom: false, worldCopyJump: true });
+  __worldMap.setView([28, 15], 2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 10,
+  }).addTo(__worldMap);
+  state.world.cases.forEach(c => {
+    L.circleMarker([c.lat, c.lon], { radius: 8, color: '#FAF8F4', weight: 1.2,
+      fillColor: '#B23348', fillOpacity: 0.95, className: 'mk-pulse' })
+      .addTo(__worldMap)
+      .bindPopup(`<b>${c.name}</b><br>${c.place}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
+                 `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView({behavior:'smooth'});return false;">read the case</a>`);
+  });
+  L.circleMarker([41.68, -71.5], { radius: 9, color: '#FAF8F4', weight: 1.5,
+    fillColor: '#3A5CA8', fillOpacity: 0.95 }).addTo(__worldMap)
+    .bindPopup('<b>Rhode Island</b><br>the live pilot: 965 structures under audit<br><a href="#docket">open the docket</a>');
+  $('#world-legend').innerHTML =
+    '<div><i style="background:#B23348"></i>DOCUMENTED COLLAPSE</div>' +
+    '<div><i style="background:#3A5CA8"></i>LIVE PILOT (THE DOCKET)</div>';
+}
+
 /* ============ routing & boot ============ */
 function route() {
   const view = (location.hash || '#docket').slice(1);
@@ -638,16 +680,20 @@ function route() {
   target.scrollTop = 0;
   closeDossier();
   if ((target.id === 'view-docket') && __map) setTimeout(() => __map.invalidateSize(), 80);
+  if (target.id === 'view-world') {
+    initWorldMap();
+    if (__worldMap) setTimeout(() => __worldMap.invalidateSize(), 80);
+  }
 }
 window.addEventListener('hashchange', route);
 $('#print-btn').onclick = () => window.print();
 
 async function boot() {
   try {
-    const [assets, summary, events, morandi] = await Promise.all(
-      ['assets.json', 'summary.json', 'events.json', 'morandi.json']
+    const [assets, summary, events, morandi, world] = await Promise.all(
+      ['assets.json', 'summary.json', 'events.json', 'morandi.json', 'global.json']
         .map(f => fetch('data/' + f).then(r => r.json())));
-    Object.assign(state, { assets, summary, events, morandi });
+    Object.assign(state, { assets, summary, events, morandi, world });
   } catch (e) {
     $('#docket-list').innerHTML = '<div class="empty-state">FAILED TO LOAD THE FEDERAL RECORD — RELOAD THE CONSOLE.</div>';
     return;
@@ -658,6 +704,7 @@ async function boot() {
   renderWashington();
   renderMorandi();
   renderMethod();
+  renderWorld();
   route();
   initMap();
 }

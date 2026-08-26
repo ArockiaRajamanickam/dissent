@@ -76,6 +76,16 @@ Morandi precursor series, and per-row 34-year sparklines. Illustrations were
 generated with the team's ChatGPT account for this project; fonts are IBM Plex and
 Space Grotesk (Google Fonts).
 
+## The World module
+
+A fifth console view plots the documented forensic record the method is built on:
+eight real collapses across four continents (Genoa, Minneapolis, Miami, Surfside,
+Morbi, Dresden, Mexico City, Yilan), each with the weak signal that existed, the
+lead time it offered, and why nothing happened — every case documented by an
+official investigation or peer-reviewed study. Rhode Island is marked as the live
+pilot. No invented data: countries without open per-asset inspection histories get
+case files, not fabricated inventories.
+
 ## Honest limits
 
 Several missed holdout events are administrative closures (bypassed or replaced
