@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 
 data/national/
+pitch/node_modules/
+pitch/slide-*.jpg
+pitch/*.pdf
