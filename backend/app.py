@@ -335,6 +335,15 @@ def changes(state: str, limit: int = Query(25, ge=1, le=200)):
         wx = state_weather(st)
     except Exception:
         wx = {k: MEDIANS[k] for k in ('ft', 'ft5', 'ft_cum', 'precip5', 'heavy5', 'max1d')}
+    # Baseline: what share of ALL compared structures carried a dissent last year?
+    # Without it a hit rate is uninterpretable.
+    base_rows = merged.sample(min(len(merged), 4000), random_state=11).to_dict('records')
+    bX = np.array([featurise(r, wx, year=NBI_YEAR - 1) for r in base_rows], dtype=float)
+    bpred = MODEL.predict(bX)
+    base_flag = float(np.mean([
+        verdict(float(p), int(r['__r']))['state_dissent'] > 0
+        for p, r in zip(bpred, base_rows)]))
+
     rows = drops.to_dict('records')
     X = np.array([featurise(r, wx, year=NBI_YEAR - 1) for r in rows], dtype=float)
     preds = MODEL.predict(X)
@@ -353,11 +362,16 @@ def changes(state: str, limit: int = Query(25, ge=1, le=200)):
     out.sort(key=lambda d: (-d['dissent_last_year'], -d['drop']))
     return dict(state=st, from_year=NBI_YEAR - 1, to_year=NBI_YEAR,
                 compared=int(len(merged)), events=len(out), flagged_first=flagged,
-                hit_rate=round(flagged / len(out), 3), seconds=round(time.time() - t0, 2),
+                hit_rate=round(flagged / len(out), 3),
+                baseline_rate=round(base_flag, 3),
+                lift=round((flagged / len(out)) / base_flag, 2) if base_flag > 0 else None,
+                seconds=round(time.time() - t0, 2),
                 note=('Every structure here had its official rating fall two or more steps between '
                       f'the {NBI_YEAR - 1} and {NBI_YEAR} federal files. The physics verdict shown is '
                       f'computed from {NBI_YEAR - 1} attributes only, before the record moved. The '
-                      'model was frozen in 2015 and has never seen either file.'),
+                      'model was frozen in 2015 and has never seen either file. The baseline is '
+                      'the dissent rate across a random sample of every structure compared, so the '
+                      'lift says how much likelier a dissent was on a structure that then fell.'),
                 events_list=out[:limit])
 
 @app.get('/api/index')
