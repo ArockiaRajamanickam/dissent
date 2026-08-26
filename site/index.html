@@ -12,7 +12,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2316204A'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23FAF8F4' font-family='monospace' font-weight='bold'>D</text><rect x='20' y='78' width='60' height='8' fill='%23C6283C'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,900&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -25,10 +25,10 @@
     <div class="clock mono"><span class="run-dot" aria-hidden="true"></span><span id="utc-clock">--:--:--</span> UTC</div>
   </div>
   <nav class="tabrail mono">
-    <a href="#docket" data-nav="docket"><span>01</span> DOCKET</a>
-    <a href="#washington" data-nav="washington"><span>02</span> CASE FILE: WASHINGTON BRIDGE</a>
-    <a href="#morandi" data-nav="morandi"><span>03</span> DETECTOR REPLAY: MORANDI</a>
-    <a href="#method" data-nav="method"><span>04</span> METHOD</a>
+    <a href="#docket" data-nav="docket"><span>01</span> THE DOCKET</a>
+    <a href="#washington" data-nav="washington"><span>02</span> EXHIBIT A: WASHINGTON</a>
+    <a href="#morandi" data-nav="morandi"><span>03</span> EXHIBIT B: MORANDI</a>
+    <a href="#method" data-nav="method"><span>04</span> THE METHOD</a>
   </nav>
   <div class="kpis mono" id="stat-band">LOADING FEDERAL RECORD…</div>
 </header>
@@ -42,12 +42,12 @@
     <div id="docket-side">
       <div class="panelbar mono">
         <span id="panel-title">DISSENT DOCKET | Q3 2026</span>
-        <button class="panelbtn mono" id="print-btn" title="Print the current docket">PRINT DOCKET</button>
+        <button class="panelbtn mono" id="print-btn" title="Print the current docket">PUT IT ON PAPER</button>
       </div>
       <div class="docket-paper">
         <div id="docket-tools"></div>
         <div class="tablewrap" id="docket-list">
-          <div class="bootload mono">LOADING FEDERAL RECORD… 25,813 ROWS
+          <div class="bootload mono">READING THE FEDERAL RECORD… 25,813 FILINGS
             <div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div>
             <div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div>
           </div>
@@ -57,17 +57,17 @@
   </section>
 
   <section id="view-washington" class="view view-paper" aria-label="Washington Bridge case file">
-    <div class="module-head mono">02 / CASE FILE : WASHINGTON BRIDGE : I-195 WB OVER THE SEEKONK RIVER</div>
+    <div class="module-head mono">EXHIBIT A / THE RECORD SAID 4. THE BRIDGE SAID OTHERWISE.</div>
     <div class="paper" id="paper-washington"></div>
   </section>
 
   <section id="view-morandi" class="view view-paper" aria-label="Morandi detector replay">
-    <div class="module-head mono">03 / DETECTOR REPLAY : MORANDI BRIDGE, GENOA : PUBLISHED PRECURSOR SERIES</div>
+    <div class="module-head mono">EXHIBIT B / SEVENTEEN MONTHS OF WARNING, REPLAYED LIVE</div>
     <div class="paper" id="paper-morandi"></div>
   </section>
 
   <section id="view-method" class="view view-paper" aria-label="Method">
-    <div class="module-head mono">04 / METHOD : HOW THE MACHINE SECOND OPINION WORKS</div>
+    <div class="module-head mono">THE METHOD / HOW A MACHINE COMES TO DISAGREE WITH THE RECORD</div>
     <div class="paper" id="paper-method"></div>
   </section>
 </main>

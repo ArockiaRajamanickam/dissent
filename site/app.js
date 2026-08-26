@@ -68,10 +68,10 @@ function trajChart(traj, cps, opts = {}) {
   let s = svgOpen(W, H);
   for (let r = 0; r <= 9; r += 3) {
     s += `<line x1="${L}" y1="${Y(r)}" x2="${W - R}" y2="${Y(r)}" stroke="#EFECE4"/>`;
-    s += `<text x="${L - 8}" y="${Y(r) + 4}" font-size="11" fill="#6A7088" text-anchor="end" font-family="IBM Plex Mono">${r}</text>`;
+    s += `<text x="${L - 8}" y="${Y(r) + 4}" font-size="11" fill="#6A7088" text-anchor="end" font-family="Courier Prime">${r}</text>`;
   }
   for (let yr = Math.ceil(x0 / 5) * 5; yr <= x1; yr += 5) {
-    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="11" fill="#6A7088" text-anchor="middle" font-family="IBM Plex Mono">${yr}</text>`;
+    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="11" fill="#6A7088" text-anchor="middle" font-family="Courier Prime">${yr}</text>`;
   }
   const band = traj.filter(t => t[2] !== null);
   if (band.length) {
@@ -99,7 +99,7 @@ function trajChart(traj, cps, opts = {}) {
   }
   (opts.markers || []).forEach(m => {
     s += `<line x1="${X(m.year)}" y1="${T}" x2="${X(m.year)}" y2="${H - B}" stroke="#C6283C" stroke-width="1.2" stroke-dasharray="4 3"/>`;
-    s += `<text x="${X(m.year) + 5}" y="${T + 13}" font-size="11" fill="#C6283C" font-family="IBM Plex Mono">${m.label}</text>`;
+    s += `<text x="${X(m.year) + 5}" y="${T + 13}" font-size="11" fill="#C6283C" font-family="Courier Prime">${m.label}</text>`;
   });
   return s + '</svg>';
 }
@@ -143,10 +143,10 @@ function renderChrome() {
   $('#runline').textContent =
     `RHODE ISLAND | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | DOCKET GENERATED ${s.generated} | ${fmt(s.n_assets)} OPEN STRUCTURES`;
   $('#stat-band').innerHTML =
-    `<b>${fmt(s.n_records)}</b> RECORDS<span class="sep">|</span>` +
-    `MAE <b>${s.mae_test}</b> ON 2019+ UNSEEN<span class="sep">|</span>` +
+    `<b>${fmt(s.n_records)}</b> FILINGS READ<span class="sep">|</span>` +
+    `WRONG BY <b>${s.mae_test}</b> STEPS ON YEARS IT NEVER SAW<span class="sep">|</span>` +
     `COVERAGE <b>${Math.round(s.coverage * 100)}%</b><span class="sep">|</span>` +
-    `<span class="hot">FLAGGED EARLY <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x RANDOM)</span><span class="sep">|</span>` +
+    `<span class="hot">CAUGHT BEFORE THE RECORD: <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x CHANCE)</span><span class="sep">|</span>` +
     `<span class="hot">WASHINGTON LEAD <b>5 YRS</b></span>`;
   const nI = state.assets.filter(x => x.band === 'inspect').length;
   const nS = state.assets.filter(x => x.band === 'schedule').length;
@@ -195,7 +195,7 @@ function renderDocketTools() {
       ${['priority', 'inspect', 'schedule', 'watch', 'all'].map(b =>
         `<button class="chip ${state.bandFilter === b ? 'active' : ''}" data-band="${b}">` +
         `${b === 'priority' ? 'DOCKET' : b === 'all' ? 'ALL' : BAND_LABEL[b]} <span class="n">${counts[b]}</span></button>`).join('')}
-      <input class="search" id="docket-search" placeholder="search route / crossing / id" value="${state.query}">
+      <input class="search" id="docket-search" placeholder="look up a structure…" value="${state.query}">
       <span class="result-count" id="result-count"></span>
     </div>`;
   document.querySelectorAll('#docket-tools .chip').forEach(c => c.onclick = () => {
@@ -212,7 +212,7 @@ function renderDocketTools() {
 function renderDocketTable() {
   const list = filteredList();
   const arrow = k => state.sortKey === k ? (state.sortAsc ? ' &#9650;' : ' &#9660;') : '';
-  $('#result-count').textContent = `${list.length} STRUCTURE${list.length === 1 ? '' : 'S'}`;
+  $('#result-count').textContent = `${list.length} ON FILE`;
   $('#docket-list').innerHTML = `
     <table class="docket">
       <thead><tr>
@@ -282,7 +282,7 @@ function openDossier(sid) {
        ${a.cond > 0.15 ? 'Both witnesses agree this asset is in poor condition; its priority comes from severity and trajectory, not contradiction.' : 'No state dissent on file.'}`;
   const stampText = a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band];
   $('#dossier-body').innerHTML = `
-    <button class="close">ESC / CLOSE</button>
+    <button class="close">FILE AWAY (ESC)</button>
     <div class="doc-head">
       <div>
         <p class="mono">DISSENT DOSSIER No. ${String(a.rank).padStart(3, '0')} | STRUCTURE ${a.sid} | FILED ${state.summary.generated}<br>
@@ -438,7 +438,7 @@ function renderWashington() {
 function renderMorandi() {
   const v = $('#paper-morandi');
   v.innerHTML = `
-    <h2>Morandi Bridge, live detector replay</h2>
+    <h2>Seventeen months of warning, replayed</h2>
     <p>On 14 August 2018 the Morandi Bridge in Genoa collapsed, killing 43. Satellite radar analysis published
     afterwards (Milillo et al. 2019) found that a scatterer on the deck beside the failed pier had accelerated
     from about 10 to 70 mm/yr starting 12 March 2017, seventeen months before collapse. Press Run detector:
@@ -448,8 +448,8 @@ function renderMorandi() {
     ${figbar('<span><i style="background:#3A5CA8"></i>LOS velocity (mm/yr), drawn from the published record</span>' + LEG.cp,
              'MILILLO ET AL. 2019 | CONTESTED BY LANARI ET AL. 2020')}
     <div class="ctrlbar">
-      <button class="btn" id="morandi-play">Run detector</button>
-      <button class="btn secondary" id="morandi-reset">Reset</button>
+      <button class="btn" id="morandi-play">RUN THE DETECTOR</button>
+      <button class="btn secondary" id="morandi-reset">WIND IT BACK</button>
       <span class="ctrl-status" id="morandi-status">DETECTOR IDLE</span>
     </div>
     <p class="note">Honesty note: the precursor finding is scientifically contested (Lanari et al. 2020 reprocessed
@@ -470,7 +470,7 @@ function renderMorandi() {
       sbCenter(`BOCPD | t=${t.toFixed(2)} | P(changepoint)=${(window.__morandiLastCp || 0).toFixed(3)}`);
       if (window.__morandiFired && !window.__morandiToasted) {
         window.__morandiToasted = true;
-        toast('DISSENT FILED — the machine files paper. See the docket for live cases.');
+        toast('DISSENT FILED. The machine puts it on paper — the docket holds 84 live ones.');
       }
       if (step >= m.series.length) {
         clearInterval(timer); timer = null; play.disabled = false;
@@ -486,7 +486,7 @@ function renderMorandi() {
     step = 0; play.disabled = false;
     window.__morandiToasted = false;
     drawMorandi(0);
-    status.textContent = 'DETECTOR IDLE';
+    status.textContent = 'THE DETECTOR IS WAITING';
     sbCenter('FHWA NBI | ERA5 (OPEN-METEO) | MILILLO 2019');
   };
 }
@@ -505,13 +505,13 @@ function drawMorandi(upto) {
   let s = svgOpen(W, H);
   for (let g = 0; g <= 80; g += 20) {
     s += `<line x1="${L}" y1="${Y(g)}" x2="${W - R}" y2="${Y(g)}" stroke="#EFECE4"/>
-          <text x="${L - 8}" y="${Y(g) + 4}" font-size="11" fill="#6A7088" text-anchor="end" font-family="IBM Plex Mono">${g}</text>`;
+          <text x="${L - 8}" y="${Y(g) + 4}" font-size="11" fill="#6A7088" text-anchor="end" font-family="Courier Prime">${g}</text>`;
   }
   [2015, 2016, 2017, 2018].forEach(yr => {
-    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="11" fill="#6A7088" font-family="IBM Plex Mono">${yr}</text>`;
+    s += `<text x="${X(yr)}" y="${H - B + 17}" font-size="11" fill="#6A7088" font-family="Courier Prime">${yr}</text>`;
   });
   s += `<line x1="${X(m.collapse)}" y1="${T}" x2="${X(m.collapse)}" y2="${H - B}" stroke="#20263E" stroke-width="1.4"/>
-        <text x="${X(m.collapse) - 6}" y="${T + 12}" font-size="11" fill="#20263E" text-anchor="end" font-family="IBM Plex Mono">collapse 14 Aug 2018</text>`;
+        <text x="${X(m.collapse) - 6}" y="${T + 12}" font-size="11" fill="#20263E" text-anchor="end" font-family="Courier Prime">collapse 14 Aug 2018</text>`;
   s += `<polyline fill="none" stroke="#3A5CA8" stroke-width="2.4" points="${shown.map(p => `${X(p[0])},${Y(p[1])}`).join(' ')}"/>`;
   shown.forEach((p, i) => {
     const c = cps[i];
@@ -520,7 +520,7 @@ function drawMorandi(upto) {
   if (fired !== null) {
     const p = shown[fired];
     s += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="7" fill="none" stroke="#C6283C" stroke-width="2.4"/>
-          <text x="${X(p[0]) + 10}" y="${Y(p[1]) - 10}" font-size="12" fill="#C6283C" font-family="IBM Plex Mono" font-weight="500">DISSENT FILED (${p[0].toFixed(2)})</text>`;
+          <text x="${X(p[0]) + 10}" y="${Y(p[1]) - 10}" font-size="12" fill="#C6283C" font-family="Courier Prime" font-weight="500">DISSENT FILED (${p[0].toFixed(2)})</text>`;
   }
   $('#morandi-chart').innerHTML = s + '</svg>';
 }
@@ -531,7 +531,7 @@ function renderMethod() {
   $('#paper-method').innerHTML = `
     <div class="method">
       <img class="method-emblem" src="assets/emblem.webp" alt="DISSENT emblem: a balance scale weighing a document against a bridge">
-      <h2>How the machine second opinion works</h2>
+      <h2>How a machine comes to disagree with the record</h2>
       <p><b>The claim.</b> Infrastructure does not fail silently, it fails contradicted. DISSENT maintains two
       independent accounts of every asset: the <b>Paper Witness</b> (the official condition-rating record) and the
       <b>Physics Witness</b> (a model that predicts what the rating should be from evidence alone, never having seen
