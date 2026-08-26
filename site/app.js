@@ -771,6 +771,18 @@ function renderLive() {
     </div>
     <div id="live-out"></div>
 
+    <h2 style="margin-top:30px">Did we call it before the paperwork did?</h2>
+    <p>The hardest test we can offer, and you choose the state. The server pulls
+    <b>two</b> federal files, last year's and this year's, finds every structure whose official rating
+    just fell two or more steps, and then scores each one from <b>last year's</b> attributes: had the
+    physics witness already dissented, before the record moved?</p>
+    <div class="ctrlbar">
+      <select id="chg-state" class="live-select mono">${opts}</select>
+      <button class="btn" id="chg-run">CHECK WHAT CHANGED</button>
+      <span class="ctrl-status" id="chg-status">READY</span>
+    </div>
+    <div id="chg-out"></div>
+
     <h2 style="margin-top:30px">The National Dissent Index</h2>
     <p>Every audit the server runs also measures one thing across <b>all</b> of that state's structures,
     not just the flagged ones: how much sunnier its filed ratings run than the physics witness. The
@@ -790,8 +802,55 @@ function renderLive() {
   apiHealth();
   $('#live-run').onclick = runLiveAudit;
   $('#index-refresh').onclick = renderIndex;
+  $('#chg-run').onclick = runChanges;
   renderIndex();
   renderWhatIf();
+}
+
+async function runChanges() {
+  const st = $('#chg-state').value, btn = $('#chg-run');
+  const stat = $('#chg-status'), out = $('#chg-out');
+  btn.disabled = true;
+  stat.innerHTML = `<span class="live">●</span> COMPARING TWO FEDERAL FILES FOR ${esc(st)}…`;
+  out.innerHTML = '<div class="bootload mono">READING BOTH YEARS OF THE RECORD…' +
+    '<div class="skel-row"></div><div class="skel-row"></div></div>';
+  try {
+    const r = await fetch(`${API_BASE}/api/changes/${st}?limit=25`);
+    if (!r.ok) throw new Error('API returned ' + r.status);
+    const d = await r.json();
+    stat.textContent = `DONE IN ${d.seconds}s`;
+    if (!d.events) {
+      out.innerHTML = `<div class="card"><h4>Nothing fell in ${esc(st)} this year</h4>
+        <p>${esc(d.note)} ${fmt(d.compared)} structures were compared.</p></div>`;
+      return;
+    }
+    out.innerHTML = `
+      <div class="live-summary">
+        <div><b>${fmt(d.compared)}</b><span>STRUCTURES COMPARED ${d.from_year}→${d.to_year}</span></div>
+        <div><b>${d.events}</b><span>RECORDS FELL 2+ STEPS</span></div>
+        <div><b>${d.flagged_first}</b><span>WE HAD ALREADY DISSENTED</span></div>
+        <div><b>${d.lift ? d.lift + '×' : '—'}</b><span>LIFT OVER THE ${Math.round(d.baseline_rate * 100)}% BASE RATE</span></div>
+      </div>
+      <div class="tablewrap" style="max-height:none;margin-top:12px">
+      <table class="docket"><thead><tr>
+        <th>Structure</th><th>ID</th><th>Record ${d.from_year}</th><th>Record ${d.to_year}</th>
+        <th>Physics ${d.from_year}</th><th>Dissent then</th><th>Called first</th></tr></thead><tbody>
+      ${d.events_list.map(x => `<tr>
+        <td><b>${esc(x.carries || 'Unnamed')}</b><br><span class="dim" style="font-size:11.5px">over ${esc(x.crosses || '—')}</span></td>
+        <td class="mono sid">${esc(x.sid)}</td>
+        <td><span class="rchip rc-${rcls(x.was)}">${x.was}</span></td>
+        <td><span class="rchip rc-${rcls(x.now)}">${x.now}</span></td>
+        <td><span class="rchip rc-${rcls(x.physics_last_year)}">${x.physics_last_year.toFixed(1)}</span></td>
+        <td class="mono">${x.dissent_last_year > 0 ? x.dissent_last_year.toFixed(2) : '—'}</td>
+        <td class="mono" style="color:${x.flagged_first ? '#B23348' : '#6A7088'}">${x.flagged_first ? 'YES' : 'no'}</td>
+      </tr>`).join('')}
+      </tbody></table></div>
+      <p class="note">${esc(d.note)}</p>`;
+  } catch (e) {
+    stat.textContent = 'THE API DID NOT ANSWER';
+    out.innerHTML = '<div class="card"><p>This call reads two large federal files, so it needs the '
+      + 'server awake. Free instances sleep; press CHECK WHAT CHANGED again in a moment.</p></div>';
+  } finally { btn.disabled = false; }
 }
 
 async function renderIndex() {
