@@ -13,6 +13,7 @@ import math
 import os
 import numpy as np
 import pandas as pd
+from scipy.special import gammaln
 from sklearn.ensemble import HistGradientBoostingRegressor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -115,29 +116,53 @@ print(f'conformal q90 = {Q90:.2f} rating steps')
 print(f'2019+ MAE = {mae_te:.2f}, interval coverage = {cov_te:.1%}')
 
 # ---------------------------------------------------------------- BOCPD
-def bocpd_change_prob(series, hazard=1 / 8.0):
-    """Adams-MacKay BOCPD, Gaussian with unknown mean (known-ish variance).
-    Returns per-step probability that a changepoint just occurred."""
-    if len(series) < 4:
-        return [0.0] * len(series)
+def bocpd_change_prob(series, hazard=1 / 8.0, sigma0=None):
+    """Adams-MacKay BOCPD with a Normal-Inverse-Gamma conjugate model
+    (unknown mean AND unknown variance), Student-t predictive.
+
+    Variance is learned online per run length, never from the full series,
+    so a genuine level shift IS surprising when it arrives.
+    Returns the per-step posterior probability of run length zero."""
     s = np.asarray(series, dtype=float)
-    var = max(np.var(s), 0.15)
-    mu0, k0 = 0.0, 0.25
+    n = len(s)
+    if n < 4:
+        return [0.0] * n
+    if sigma0 is None:
+        d = np.abs(np.diff(s[:min(8, n)]))
+        sigma0 = max(float(np.median(d)) if len(d) else 0.5, 0.35)
+    mu0, k0, a0 = float(s[0]), 0.5, 1.5
+    b0 = a0 * sigma0 ** 2
     R = np.array([1.0])
-    mus, ks = np.array([mu0]), np.array([k0])
+    mu, k, a, b = (np.array([mu0]), np.array([k0]),
+                   np.array([a0]), np.array([b0]))
     cps = []
+
+    def t_logpdf(x, mu_, k_, a_, b_):
+        df_ = 2 * a_
+        sc2 = b_ * (k_ + 1) / (a_ * k_)
+        z2 = (x - mu_) ** 2 / sc2
+        return (gammaln((df_ + 1) / 2) - gammaln(df_ / 2) -
+                0.5 * np.log(np.pi * df_ * sc2) -
+                (df_ + 1) / 2 * np.log1p(z2 / df_))
+
+    # the changepoint path emits under a BROAD new-segment prior: a fresh
+    # regime can sit anywhere within a few baseline scales of where we are
+    wide_b = a0 * (4.0 * sigma0) ** 2
     for x in s:
-        pred_var = var * (1 + 1 / ks)
-        like = np.exp(-0.5 * (x - mus) ** 2 / pred_var) / np.sqrt(
-            2 * np.pi * pred_var)
+        like = np.exp(np.clip(t_logpdf(x, mu, k, a, b), -60, 60))
+        run_mean = float((R * mu).sum())
+        pi0 = math.exp(max(t_logpdf(np.array([x]), np.array([run_mean]),
+                                    np.array([0.3]), np.array([a0]),
+                                    np.array([wide_b]))[0], -60))
         growth = R * like * (1 - hazard)
-        cp = float((R * like * hazard).sum())
+        cp = hazard * pi0
         R = np.concatenate([[cp], growth])
-        R /= max(R.sum(), 1e-12)
+        R /= max(R.sum(), 1e-300)
         cps.append(float(R[0]))
-        new_mus = (ks * mus + x) / (ks + 1)
-        mus = np.concatenate([[mu0], new_mus])
-        ks = np.concatenate([[k0], ks + 1])
+        b = np.concatenate([[b0], b + k * (x - mu) ** 2 / (2 * (k + 1))])
+        mu = np.concatenate([[mu0], (k * mu + x) / (k + 1)])
+        k = np.concatenate([[k0], k + 1])
+        a = np.concatenate([[a0], a + 0.5])
     return cps
 
 # ---------------------------------------------------------------- dissent
@@ -283,6 +308,9 @@ for rank_pos, idx in enumerate(order):
         lower=round(d['lower'], 2), upper=round(d['upper'], 2),
         cond=round(float(cond_n[idx]), 3),
         state=round(float(state_n[idx]), 3),
+        pr_state=round(0.45 * min(d['state'], 3.0) / 3.0, 3),
+        pr_trend=round(0.25 * min(d['trend'], 2.0) / 2.0, 3),
+        pr_cond=round(0.30 * d['cond'], 3),
         trend=round(float(trend_n[idx]), 3),
         fused=round(float(fused[idx]), 3), cp=round(d['cp'], 3),
         traj=traj, cps=[round(c, 3) for c in cps], attr=attr))

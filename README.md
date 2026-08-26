@@ -66,6 +66,16 @@ Training uses only records through 2015; calibration 2016-2018; everything after
 is evaluation. No external model APIs, no installed hardware, every input free
 and public.
 
+## Interface
+
+The deployed docket is a zero-framework single-page app: a live Leaflet map of all
+965 structures (basemap OpenStreetMap contributors / CARTO; Rhode Island boundary
+from US Census cartographic files, public domain), per-asset dossiers with
+trajectory charts and conformal bands, a live in-browser BOCPD replay of the
+Morandi precursor series, and per-row 34-year sparklines. Illustrations were
+generated with the team's ChatGPT account for this project; fonts are IBM Plex and
+Space Grotesk (Google Fonts).
+
 ## Honest limits
 
 Several missed holdout events are administrative closures (bypassed or replaced

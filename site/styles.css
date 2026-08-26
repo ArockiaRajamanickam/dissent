@@ -164,8 +164,43 @@ footer a { color: #fff; }
 footer .mono { font-size: 11px; }
 
 @media (max-width: 720px) {
+  .chip, .btn { padding: 10px 14px; }
   .dgrid, .two { grid-template-columns: 1fr; }
   .foot-inner { flex-direction: column; }
   .right { text-align: left; }
   .big-lead { font-size: 32px; }
 }
+
+/* ---- hero art + map upgrade ---- */
+.hero-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 30px; align-items: center; }
+.hero-art { margin: 0; }
+.hero-art img { width: 100%; display: block; border: 1px solid var(--line); box-shadow: 0 18px 40px rgba(22,32,74,0.12); }
+.hero-art figcaption { font-size: 10px; margin-top: 6px; text-align: right; }
+#map-panel { margin: 14px 0 6px; }
+#map { height: 430px; border: 1px solid var(--line); background: var(--paper); }
+.leaflet-container { font-family: 'IBM Plex Sans', sans-serif; }
+.leaflet-popup-content-wrapper { border-radius: 0; border-top: 3px solid var(--crimson); background: var(--cream); }
+.leaflet-popup-content { font-size: 12.5px; line-height: 1.5; }
+.pop-band { font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: #fff; padding: 1px 6px; }
+.spark { display: block; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } #map { height: 320px; } }
+
+/* ---- pre-footer band ---- */
+.preband {
+  background: #16204A url('assets/hero_navy.webp') right center / cover no-repeat;
+  position: relative; margin-top: 40px;
+}
+.preband::before { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, rgba(22,32,74,0.94) 34%, rgba(22,32,74,0.55) 75%, rgba(22,32,74,0.35)); }
+.preband-inner { position: relative; display: flex; gap: 28px; align-items: center; padding: 44px 22px; }
+.preband h2 { color: #fff; font-size: clamp(22px, 3vw, 30px); line-height: 1.15; margin-bottom: 10px; }
+.preband .mono { color: #C8CBDA; font-size: 10.5px; letter-spacing: 0.4px; }
+.preband-links { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+.preband .btn { text-decoration: none; display: inline-block; }
+.btn.secondary-cream { background: transparent; color: #fff; border: 1px solid #C8CBDA; }
+.preband-emblem { width: 128px; height: 128px; border-radius: 50%; flex: none;
+  box-shadow: 0 0 0 5px rgba(250,248,244,0.18); }
+.method-emblem { float: right; width: 120px; margin: 0 0 10px 16px; border-radius: 50%;
+  border: 1px solid var(--line); }
+@media (max-width: 680px) { .preband-emblem { display: none; } .method-emblem { width: 84px; } }
+footer { margin-top: 0; }

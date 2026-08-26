@@ -14,29 +14,53 @@ const el = (tag, cls, html) => {
 };
 const fmt = n => n === null || n === undefined ? '—' : n.toLocaleString('en-US');
 
-/* ---------------- BOCPD (Adams-MacKay, Gaussian unknown mean) ---------- */
+/* ---------------- BOCPD (Adams-MacKay, Normal-Inverse-Gamma) ------------
+   Unknown mean AND variance, Student-t predictive, learned online per run
+   length. The changepoint path emits under a broad new-segment prior, so
+   the run-length-zero posterior genuinely spikes at a level shift. Mirrors
+   pipeline/03_model.py exactly. */
+function gammaln(z) {
+  const g = [76.18009172947146, -86.50532032941677, 24.01409824083091,
+             -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+  let x = z, y = z, tmp = x + 5.5;
+  tmp -= (x + 0.5) * Math.log(tmp);
+  let ser = 1.000000000190015;
+  for (let j = 0; j < 6; j++) ser += g[j] / ++y;
+  return -tmp + Math.log(2.5066282746310005 * ser / x);
+}
+function tLogPdf(x, mu, k, a, b) {
+  const df = 2 * a;
+  const sc2 = b * (k + 1) / (a * k);
+  const z2 = (x - mu) ** 2 / sc2;
+  return gammaln((df + 1) / 2) - gammaln(df / 2) -
+         0.5 * Math.log(Math.PI * df * sc2) -
+         (df + 1) / 2 * Math.log1p(z2 / df);
+}
 function bocpd(series, hazard = 1 / 10) {
   const n = series.length;
   if (n < 4) return series.map(() => 0);
-  const mean = series.reduce((a, b) => a + b, 0) / n;
-  const variance = Math.max(
-    series.reduce((a, b) => a + (b - mean) ** 2, 0) / n, 0.2);
-  let R = [1.0], mus = [0.0], ks = [0.25];
+  const diffs = [];
+  for (let i = 1; i < Math.min(8, n); i++) diffs.push(Math.abs(series[i] - series[i - 1]));
+  diffs.sort((a, b) => a - b);
+  const sigma0 = Math.max(diffs.length ? diffs[Math.floor(diffs.length / 2)] : 0.5, 0.35);
+  const mu0 = series[0], k0 = 0.5, a0 = 1.5, b0 = a0 * sigma0 ** 2;
+  const wideB = a0 * (4.0 * sigma0) ** 2;
+  let R = [1.0], mu = [mu0], k = [k0], a = [a0], b = [b0];
   const cps = [];
   for (const x of series) {
-    const like = mus.map((mu, i) => {
-      const pv = variance * (1 + 1 / ks[i]);
-      return Math.exp(-0.5 * (x - mu) ** 2 / pv) / Math.sqrt(2 * Math.PI * pv);
-    });
+    const like = mu.map((m, i) =>
+      Math.exp(Math.max(Math.min(tLogPdf(x, m, k[i], a[i], b[i]), 60), -60)));
+    const runMean = R.reduce((s, r, i) => s + r * mu[i], 0);
+    const pi0 = Math.exp(Math.max(tLogPdf(x, runMean, 0.3, a0, wideB), -60));
     const growth = R.map((r, i) => r * like[i] * (1 - hazard));
-    const cp = R.reduce((a, r, i) => a + r * like[i] * hazard, 0);
-    R = [cp, ...growth];
-    const Z = Math.max(R.reduce((a, b) => a + b, 0), 1e-12);
-    R = R.map(r => r / Z);
+    R = [hazard * pi0, ...growth];
+    const Z = Math.max(R.reduce((s, v) => s + v, 0), 1e-300);
+    R = R.map(v => v / Z);
     cps.push(R[0]);
-    const newMus = mus.map((mu, i) => (ks[i] * mu + x) / (ks[i] + 1));
-    mus = [0.0, ...newMus];
-    ks = [0.25, ...ks.map(k => k + 1)];
+    b = [b0, ...b.map((bv, i) => bv + k[i] * (x - mu[i]) ** 2 / (2 * (k[i] + 1)))];
+    mu = [mu0, ...mu.map((m, i) => (k[i] * m + x) / (k[i] + 1))];
+    k = [k0, ...k.map(v => v + 1)];
+    a = [a0, ...a.map(v => v + 0.5)];
   }
   return cps;
 }
@@ -104,7 +128,7 @@ function renderStats() {
     <div class="stat"><b>${s.mae_test}</b><span>rating-steps MAE on 2019+ (unseen)</span></div>
     <div class="stat"><b>${Math.round(s.coverage * 100)}%</b><span>conformal interval coverage</span></div>
     <div class="stat hot"><b>${Math.round(s.event_recall * 100)}%</b><span>held-out failures flagged early (${lift}x random)</span></div>
-    <div class="stat hot"><b>6 yrs</b><span>washington bridge lead time</span></div>`;
+    <div class="stat hot"><b>5 yrs</b><span>washington bridge lead time</span></div>`;
 }
 
 /* ---------------- docket ----------------------------------------------- */
@@ -121,9 +145,31 @@ function meter(v, cls) {
   return `<div class="meter ${cls || ''}"><i style="width:${Math.round(Math.min(v, 1) * 100)}%"></i></div>`;
 }
 
+function sparkline(traj) {
+  const W = 92, H = 24;
+  const pts = traj.filter(t => t[1] !== null);
+  if (pts.length < 2) return '';
+  const x0 = pts[0][0], x1 = pts[pts.length - 1][0];
+  const X = yr => 2 + (yr - x0) / Math.max(x1 - x0, 1) * (W - 4);
+  const Y = r => 2 + (9 - r) / 9 * (H - 4);
+  const rec = pts.map(t => `${X(t[0]).toFixed(1)},${Y(t[1]).toFixed(1)}`).join(' ');
+  const prd = traj.filter(t => t[2] !== null)
+    .map(t => `${X(t[0]).toFixed(1)},${Y(t[2]).toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <polyline points="${prd}" fill="none" stroke="#3A5CA8" stroke-width="1" opacity="0.6"/>
+    <polyline points="${rec}" fill="none" stroke="#20263E" stroke-width="1.6"/>
+    <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="2" fill="#C6283C"/></svg>`;
+}
+
 function renderDocket() {
-  const v = $('#view-docket');
+  const v = $('#docket-list');
   const s = state.summary;
+  $('#docket-intro').innerHTML = `Every open structure in the state, ranked by <b>priority</b>: how strongly the physical
+    evidence contradicts the official record (state dissent), whether the disagreement is accelerating
+    (trend dissent, a Bayesian online changepoint detector), and how bad physics believes the asset is
+    regardless of what the record says (the I-35W clause). The docket is capped to real inspection
+    capacity: ${s.bands.inspect} mandatory inspections, ${s.bands.schedule} dated obligations, ${s.bands.watch} watch entries per quarter.`;
   let list = state.assets;
   if (state.bandFilter === 'priority') list = list.filter(a => a.band !== 'clear');
   else if (state.bandFilter !== 'all') list = list.filter(a => a.band === state.bandFilter);
@@ -132,19 +178,13 @@ function renderDocket() {
     list = list.filter(a => (a.carries + ' ' + a.crosses + ' ' + a.sid).toUpperCase().includes(q));
   }
   v.innerHTML = `
-    <div class="section-head"><span class="num">01</span><h2>The Dissent Docket</h2></div>
-    <p style="max-width:820px">Every open structure in the state, ranked by <b>priority</b>: how strongly the physical
-    evidence contradicts the official record (state dissent), whether the disagreement is accelerating
-    (trend dissent, a Bayesian online changepoint detector), and how bad physics believes the asset is
-    regardless of what the record says (the I-35W clause). The docket is capped to real inspection
-    capacity: ${s.bands.inspect} mandatory inspections, ${s.bands.schedule} dated obligations, ${s.bands.watch} watch entries per quarter.</p>
     <div class="filters">
       ${['priority', 'inspect', 'schedule', 'watch', 'all'].map(b =>
         `<button class="chip ${state.bandFilter === b ? 'active' : ''}" data-band="${b}">${b === 'priority' ? 'Docket (84)' : b === 'all' ? `All ${fmt(s.n_assets)}` : BAND_LABEL[b]}</button>`).join('')}
       <input class="search" placeholder="search route / crossing / id" value="${state.query}">
     </div>
     <div class="tablewrap"><table class="docket">
-      <thead><tr><th>#</th><th>Band</th><th>Structure</th><th>Built</th><th>ADT</th>
+      <thead><tr><th>#</th><th>Band</th><th>Structure</th><th>History</th><th>Built</th><th>ADT</th>
       <th>Record says</th><th>Physics says</th><th>State</th><th>Trend</th><th>Cond.</th><th>Priority</th></tr></thead>
       <tbody>
       ${list.slice(0, 400).map(a => `
@@ -152,6 +192,7 @@ function renderDocket() {
           <td class="mono">${a.rank}</td>
           <td><span class="band ${a.band}">${BAND_LABEL[a.band]}</span></td>
           <td><b>${a.carries || 'Unnamed'}</b><br><span class="dim" style="font-size:12px">over ${a.crosses || '—'}</span></td>
+          <td>${sparkline(a.traj)}</td>
           <td class="mono">${a.built || '—'}</td>
           <td class="mono">${fmt(a.adt)}</td>
           <td class="ratingpair"><b>${a.recorded}</b> / 9</td>
@@ -161,13 +202,20 @@ function renderDocket() {
           <td>${meter(a.cond, 'steel')}</td>
           <td class="prio">${a.fused.toFixed(2)}</td>
         </tr>`).join('')}
-      </tbody></table></div>
+      </tbody></table>
+      ${list.length === 0 ? '<p class="mono" style="padding:18px">No structures match that search.</p>' : ''}</div>
     <p class="note">Showing ${Math.min(list.length, 400)} of ${list.length}. Ratings use the federal NBI 0-9 scale
     (min of deck, superstructure, substructure, culvert). Physics interval is a split-conformal band calibrated on 2016-2018.
-    Click any row for its dissent dossier.</p>`;
+    Click any row for its dissent dossier. Build years come straight from the federal record, including one structure the 2025 file already lists as built 2026: a replacement in progress.</p>`;
   v.querySelectorAll('.chip').forEach(c => c.onclick = () => { state.bandFilter = c.dataset.band; renderDocket(); });
   const sr = v.querySelector('.search');
-  sr.oninput = () => { state.query = sr.value; renderDocket(); };
+  sr.oninput = () => {
+    state.query = sr.value;
+    renderDocket();
+    const nsr = $('#docket-list .search');
+    nsr.focus();
+    nsr.setSelectionRange(nsr.value.length, nsr.value.length);
+  };
   v.querySelectorAll('tr.row').forEach(r => r.onclick = () => openDossier(r.dataset.sid));
 }
 
@@ -199,16 +247,18 @@ function openDossier(sid) {
     <div class="dgrid">
       <div class="dcol"><h4>Why physics disagrees (top evidence)</h4>
         <ul class="attr">${(a.attr && a.attr.length ? a.attr : [['no strong single driver', 0]]).map(([f, d]) =>
-          `<li>${f}<b class="${d < 0 ? 'neg' : 'pos'}">${d === 0 ? '' : (d > 0 ? '+' : '') + d + ' steps'}</b></li>`).join('')}</ul>
+          `<li>${f}<b class="${d < 0 ? 'neg' : 'pos'}">${d === 0 ? '' : (d > 0 ? '+' : '') + d.toFixed(2) + ' steps'}</b></li>`).join('')}</ul>
         <p class="note">Per-feature contribution vs the population median asset; negative values drag the physics verdict down.</p>
       </div>
-      <div class="dcol"><h4>Dissent channels</h4>
+      <div class="dcol"><h4>Priority arithmetic (terms sum exactly)</h4>
         <ul class="attr">
-          <li>State dissent (record vs interval)<b>${a.state.toFixed(2)}</b></li>
-          <li>Trend dissent (BOCPD drift)<b>${a.trend.toFixed(2)}</b></li>
-          <li>Condition severity (physics)<b>${a.cond.toFixed(2)}</b></li>
-          <li>Fused priority<b>${a.fused.toFixed(2)}</b></li>
+          <li>0.45 x state dissent (capped, scaled)<b>${(a.pr_state ?? 0).toFixed(3)}</b></li>
+          <li>0.25 x trend dissent (capped, scaled)<b>${(a.pr_trend ?? 0).toFixed(3)}</b></li>
+          <li>0.30 x condition severity<b>${(a.pr_cond ?? 0).toFixed(3)}</b></li>
+          <li>Fused priority<b>${a.fused.toFixed(3)}</b></li>
         </ul>
+        <p class="note">Each channel is capped and scaled to [0,1] before weighting;
+        the three terms above add up to the priority, to the rounding digit.</p>
       </div>
     </div>
     <div class="obligation"><span class="mono">OBLIGATION CREATED | BAND: ${BAND_LABEL[a.band]}</span><p>${OBLIGATION[a.band]}</p></div>`;
@@ -232,7 +282,7 @@ function renderWashington() {
       <p class="mono">I-195 WESTBOUND OVER THE SEEKONK RIVER, PROVIDENCE | STRUCTURE ${w.sid} | EMERGENCY CLOSURE 11 DEC 2023</p>
       <h3>The record said 4, year after year. The model said: look here.</h3>
       <p>With training frozen at 2015 and no knowledge of what came after, DISSENT placed this bridge inside its
-      top-15% alert budget <span class="big-lead">6 years</span> before the emergency closure, and kept it there every single year.</p>
+      top-15% alert budget every year from 2018 on: <span class="big-lead">5 years</span> before the December 2023 emergency closure, six before the federal record finally caught up in 2024.</p>
     </div>
     ${trajChart(w.traj, w.cps, { markers: [{ year: 2023.95, label: 'emergency closure' }] })}
     <div class="legend">
@@ -267,7 +317,7 @@ function renderMorandi() {
     <p style="max-width:820px">On 14 August 2018 the Morandi Bridge in Genoa collapsed, killing 43. Satellite radar
     analysis published afterwards (Milillo et al. 2019) found that a scatterer on the deck beside the failed pier
     had accelerated from about 10 to 70 mm/yr starting 12 March 2017, seventeen months before collapse.
-    Press play: the same Bayesian online changepoint detector that powers DISSENT's trend channel runs
+    Press Run detector: the same Bayesian online changepoint detector that powers DISSENT's trend channel runs
     <b>live in your browser</b> over that published series, month by month, knowing nothing of what comes next.</p>
     <div class="card">
       <div id="morandi-chart"></div>
@@ -294,7 +344,9 @@ function renderMorandi() {
       drawMorandi(step);
       if (step >= m.series.length) {
         clearInterval(timer); timer = null;
-        $('#morandi-status').textContent = 'collapse reached: detector fired 17 months earlier';
+        $('#morandi-status').textContent = window.__morandiFired
+          ? `collapse reached: detector fired at ${window.__morandiFired.toFixed(2)}, ${Math.round((m.collapse - window.__morandiFired) * 12)} months before failure`
+          : 'collapse reached: detector did not fire on this series';
       }
     }, 90);
   };
@@ -312,6 +364,7 @@ function drawMorandi(upto) {
   const cps = bocpd(vels, 1 / 14);
   let fired = null;
   cps.forEach((c, i) => { if (fired === null && i > 5 && c > 0.5) fired = i; });
+  window.__morandiFired = fired !== null ? shown[fired][0] : null;
   let s = svgOpen(W, H);
   for (let g = 0; g <= 80; g += 20) {
     s += `<line x1="${L}" y1="${Y(g)}" x2="${W - R}" y2="${Y(g)}" stroke="#EFECE4"/>
@@ -342,6 +395,7 @@ function renderMethod() {
   $('#view-method').innerHTML = `
     <div class="section-head"><span class="num">04</span><h2>How the model works</h2></div>
     <div class="method">
+      <img class="method-emblem" src="assets/emblem.webp" alt="DISSENT emblem">
       <p><b>The claim.</b> Infrastructure does not fail silently, it fails contradicted. DISSENT maintains two
       independent accounts of every asset: the <b>Paper Witness</b> (the official condition-rating record) and the
       <b>Physics Witness</b> (a model that predicts what the rating should be from evidence alone, never having seen
@@ -364,13 +418,13 @@ function renderMethod() {
         failing must still climb the ladder.</p></div>
       <div class="step"><span class="n">STEP 05</span><p><b>The docket.</b> Priority = 0.45 state + 0.25 trend + 0.30 condition,
         capped to a real inspection budget (${s.bands.inspect} mandatory, ${s.bands.schedule} scheduled, ${s.bands.watch} watched per
-        quarter). Every flagged asset carries a dossier: what the record claims, what physics shows, which evidence
+        quarter, an 8.7% cap that is stricter than the 15% budget used in validation). Every flagged asset carries a dossier: what the record claims, what physics shows, which evidence
         moved the verdict, and the obligation created.</p></div>
       <div class="step"><span class="n">STEP 06</span><p><b>Validation on the future.</b> ${s.n_events_total} "record forced to catch up"
         events were mined from the trajectories (sudden drops of 2+ rating steps, or closures). The ${s.n_events_test} that
         occur after 2018 are pure holdout: the frozen model flagged ${Math.round(s.event_recall * 100)}% of them inside its
         top-${Math.round(s.budget_frac * 100)}% budget (${(s.event_recall / s.budget_frac).toFixed(1)}x better than random), with a median
-        lead of ${Math.round(s.median_lead)} years, including the Washington Bridge at 6 years.</p></div>
+        lead of ${Math.round(s.median_lead)} years, including the Washington Bridge every year from 2018 on.</p></div>
       <div class="card"><h4>Honest limits, stated plainly</h4>
         <p>Interval coverage on post-2018 data is ${Math.round(s.coverage * 100)}% against a 90% target: the small shortfall is
         distribution shift, and we report it rather than retune on the test years. Several missed events are
@@ -392,6 +446,43 @@ function renderMethod() {
     </div>`;
 }
 
+/* ---------------- map --------------------------------------------------- */
+const BAND_COLOR = { inspect: '#B23348', schedule: '#B8862D',
+                     watch: '#3A5CA8', clear: '#9AA0B4' };
+let __map = null;
+async function initMap() {
+  if (typeof L === 'undefined') { $('#map-panel').style.display = 'none'; return; }
+  __map = L.map('map', { scrollWheelZoom: false });
+  __map.setView([41.68, -71.5], 10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    maxZoom: 18,
+  }).addTo(__map);
+  try {
+    const ri = await fetch('assets/ri.geojson').then(r => r.ok ? r.json() : null);
+    if (ri) L.geoJSON(ri, { style: { color: '#16204A', weight: 1.4,
+      dashArray: '5 4', fill: false, opacity: 0.7 } }).addTo(__map);
+  } catch (e) { /* boundary optional */ }
+  const pts = [];
+  const order = ['clear', 'watch', 'schedule', 'inspect'];
+  order.forEach(band => {
+    state.assets.filter(a => a.band === band && a.lat && a.lon).forEach(a => {
+      pts.push([a.lat, a.lon]);
+      const hot = band !== 'clear';
+      L.circleMarker([a.lat, a.lon], {
+        radius: band === 'inspect' ? 7 : band === 'schedule' ? 5.5 : hot ? 4.5 : 2.6,
+        color: '#FAF8F4', weight: hot ? 1 : 0,
+        fillColor: BAND_COLOR[band], fillOpacity: hot ? 0.92 : 0.45,
+      }).addTo(__map).bindPopup(
+        `<b>${a.carries || 'Unnamed'}</b><br>over ${a.crosses || '—'}<br>` +
+        `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span> ` +
+        `record ${a.recorded} vs physics ${a.pred.toFixed(1)}<br>` +
+        `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`);
+    });
+  });
+  if (pts.length) __map.fitBounds(pts, { padding: [12, 12] });
+}
+
 /* ---------------- routing & boot ---------------------------------------- */
 function route() {
   const view = (location.hash || '#docket').slice(1);
@@ -401,6 +492,7 @@ function route() {
   const target = $('#view-' + view) || $('#view-docket');
   target.classList.add('active');
   closeDossier();
+  if (view === 'docket' && __map) setTimeout(() => __map.invalidateSize(), 60);
 }
 window.addEventListener('hashchange', route);
 
@@ -416,5 +508,6 @@ async function boot() {
   renderMorandi();
   renderMethod();
   route();
+  initMap();
 }
 boot();

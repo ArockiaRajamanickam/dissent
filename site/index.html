@@ -4,11 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DISSENT — the machine second opinion</title>
+<meta property="og:title" content="DISSENT: the machine second opinion">
+<meta property="og:description" content="A physics-only model re-inspects every bridge in Rhode Island and files a dissent where the official record stops agreeing with the evidence. Team Nexus Network.">
+<meta property="og:image" content="https://dissent-nexus.netlify.app/assets/blueprint_bridge.webp">
+<meta property="og:url" content="https://dissent-nexus.netlify.app/">
 <meta name="description" content="DISSENT audits every bridge in an inventory by testing the official inspection record against a physics-only model. Team Nexus Network, AI Innovation Challenge 2026.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2316204A'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23FAF8F4' font-family='monospace' font-weight='bold'>D</text><rect x='20' y='78' width='60' height='8' fill='%23C6283C'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,14 +31,30 @@
 </header>
 
 <section class="hero wrap">
-  <p class="kicker">AI INNOVATION CHALLENGE 2026 &nbsp;|&nbsp; ROUND 3 : AI EVOLUTION &nbsp;|&nbsp; TEAM NEXUS NETWORK, DEPT. OF CSE (CYBER SECURITY)</p>
-  <h1>The machine second opinion,<br>running on every bridge in Rhode&nbsp;Island.</h1>
-  <p class="sub">A physics-only model re-inspects all <span id="hero-n">—</span> structures in the state from open federal records, real weather histories and traffic loads, and files a <b>dissent</b> wherever the official inspection record stops agreeing with the physical evidence. Trained on data through 2015 only; everything after is a held-out test.</p>
+  <div class="hero-grid">
+    <div>
+      <p class="kicker">AI INNOVATION CHALLENGE 2026 &nbsp;|&nbsp; ROUND 3 : AI EVOLUTION &nbsp;|&nbsp; TEAM NEXUS NETWORK, DEPT. OF CSE (CYBER SECURITY)</p>
+      <h1>The machine second opinion,<br>running on every bridge in Rhode&nbsp;Island.</h1>
+      <p class="sub">A physics-only model re-inspects all <span id="hero-n">965</span> open structures in the state inventory from open federal records, real weather histories and traffic loads, and files a <b>dissent</b> wherever the official inspection record stops agreeing with the physical evidence. Trained on data through 2015 only; everything after is a held-out test.</p>
+    </div>
+    <figure class="hero-art">
+      <img src="assets/blueprint_bridge.webp" alt="Blueprint illustration: a satellite sweeping a radar beam across a cable-stayed bridge">
+      <figcaption class="mono dim">zero installed hardware: the audit arrives from orbit and from the archive</figcaption>
+    </figure>
+  </div>
   <div id="stat-band" class="stats"></div>
 </section>
 
 <main class="wrap">
-  <section id="view-docket" class="view"></section>
+  <section id="view-docket" class="view">
+    <div class="section-head"><span class="num">01</span><h2>The Dissent Docket</h2></div>
+    <p id="docket-intro" style="max-width:860px"></p>
+    <div id="map-panel">
+      <div id="map"></div>
+      <p class="note">Every open structure in the federal inventory, plotted live. Color is the docket band; click a marker for its dossier. Basemap: OpenStreetMap contributors, CARTO.</p>
+    </div>
+    <div id="docket-list"></div>
+  </section>
   <section id="view-washington" class="view"></section>
   <section id="view-morandi" class="view"></section>
   <section id="view-method" class="view"></section>
@@ -43,6 +64,19 @@
   <div class="dossier" id="dossier-body"></div>
 </div>
 
+<section class="preband">
+  <div class="wrap preband-inner">
+    <img class="preband-emblem" src="assets/emblem.webp" alt="Emblem: a balance scale weighing a document against a bridge">
+    <div>
+      <h2>Infrastructure does not fail silently.<br>It fails contradicted.</h2>
+      <p class="mono">DISSENT IS THE MACHINE THAT FILES THE DISSENT | BUILT IN ONE DAY ON REAL FEDERAL DATA | ZERO INSTALLED HARDWARE</p>
+      <div class="preband-links">
+        <a class="btn" href="#method">How the model works</a>
+        <a class="btn secondary-cream" href="https://github.com/ArockiaRajamanickam/dissent" target="_blank" rel="noopener">Source code</a>
+      </div>
+    </div>
+  </div>
+</section>
 <footer>
   <div class="wrap foot-inner">
     <div>
@@ -56,6 +90,7 @@
   </div>
 </footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
