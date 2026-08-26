@@ -7,7 +7,7 @@
 const K = require('./flat_kit.js');
 const {
   p, W, H, M, COL,
-  INK, PAPER, SIGNAL, STEEL, SLATE, WHITE, DIMINK, DIMPAP,
+  INK, PAPER, SIGNAL, STEEL, STEELLT, SLATE, WHITE, DIMINK, DIMPAP,
   DISPLAY, SANS, MONO,
   slide, band, txt, label, head, body, hero, shot, bleed, caption, pageNo,
   fmt, pct, S, NAT, CT, FINE, POOR, IDX,
@@ -22,10 +22,10 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   const s = slide(INK);
   label(s, 'AI Innovation Challenge 2026 · Round 3', M, 0.85, SLATE, 8);
   txt(s, 'DISSENT', { x: M - 0.06, y: 1.42, w: 11, h: 2.0,
-    fontFace: DISPLAY, fontSize: 130, bold: true, color: WHITE, charSpacing: -3 });
+    fontFace: DISPLAY, fontSize: 130, color: WHITE, charSpacing: -3.9 });
   band(s, M, 3.72, 2.2, 0.11, SIGNAL);
   txt(s, 'We audit the paperwork,\nnot the bridge.', { x: M, y: 4.06, w: 10, h: 1.5,
-    fontFace: DISPLAY, fontSize: 34, bold: true, color: WHITE, lineSpacing: 43 });
+    fontFace: DISPLAY, fontSize: 34, color: WHITE, lineSpacing: 43, charSpacing: -0.7 });
   txt(s, 'TEAM NEXUS NETWORK', { x: M, y: 6.28, w: 6, h: 0.3,
     fontFace: MONO, fontSize: 12, bold: true, color: WHITE, charSpacing: 1.8 });
   txt(s, 'DEPT. OF CSE (CYBER SECURITY)', { x: M, y: 6.62, w: 6, h: 0.3,
@@ -42,13 +42,13 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   const s = slide(INK);
   label(s, 'the problem', M, 0.85, SIGNAL, 6);
   txt(s, [
-    { text: '730', options: { fontFace: DISPLAY, fontSize: 200, bold: true, color: WHITE,
+    { text: '730', options: { fontFace: DISPLAY, fontSize: 200, color: WHITE,
                               charSpacing: -6 } },
-    { text: '  days', options: { fontFace: DISPLAY, fontSize: 48, bold: true, color: SIGNAL } },
+    { text: '  days', options: { fontFace: DISPLAY, fontSize: 48, color: SIGNAL } },
   ], { x: M - 0.18, y: 1.3, w: 11.5, h: 2.5, valign: 'middle' });
   txt(s, 'between one look at a bridge and the next.',
-    { x: M, y: 4.15, w: 11, h: 0.8, fontFace: DISPLAY, fontSize: 32, bold: true,
-      color: WHITE, lineSpacing: 41 });
+    { x: M, y: 4.15, w: 11, h: 0.8, fontFace: DISPLAY, fontSize: 32,
+      color: WHITE, lineSpacing: 41, charSpacing: -0.7 });
   txt(s, 'In between, the file is the only thing anyone consults.\nThe file is standing still. The bridge is not.',
     { x: M, y: 5.35, w: 10, h: 1.1, fontFace: SANS, fontSize: 18, color: DIMINK,
       lineSpacing: 28 });
@@ -88,36 +88,34 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
 
 // ══════════════════════════════════════ 04 THE IDEA
 {
-  const s = slide(STEEL);
-  label(s, 'the idea', M, 0.85, 'AFC2FF', 6);
+  const s = slide(PAPER);
+  label(s, 'the idea', M, 0.85, SIGNAL, 6);
   head(s, 'Keep two accounts of every bridge.\nSell the argument between them.',
-       M, 1.22, { color: WHITE, size: 38, h: 1.9 });
+       M, 1.22, { color: INK, size: 38, h: 1.9 });
 
-  const y = 3.5, bw = 5.35, bh = 2.1;
-  // the record
-  band(s, M, y, bw, bh, WHITE);
+  const y = 3.45, bw = 5.35, bh = 2.1;
+  band(s, M, y, bw, bh, SLATE);
   txt(s, 'THE RECORD', { x: M + 0.34, y: y + 0.32, w: bw - 0.68, h: 0.3,
-    fontFace: MONO, fontSize: 11, bold: true, color: DIMPAP, charSpacing: 1.5 });
+    fontFace: MONO, fontSize: 11, bold: true, color: 'E4E6E9', charSpacing: 1.8 });
   txt(s, 'What the\ninstitution filed', { x: M + 0.34, y: y + 0.72, w: bw - 0.68, h: 0.9,
-    fontFace: DISPLAY, fontSize: 24, bold: true, color: INK, lineSpacing: 30 });
+    fontFace: DISPLAY, fontSize: 24, color: WHITE, lineSpacing: 30, charSpacing: -0.5 });
   txt(s, 'An inspector visits, and writes one number.', { x: M + 0.34, y: y + 1.62,
-    w: bw - 0.68, h: 0.4, fontFace: SANS, fontSize: 13, color: DIMPAP });
+    w: bw - 0.68, h: 0.4, fontFace: SANS, fontSize: 13, color: 'E4E6E9' });
 
-  // the model
   const rx = M + bw + 0.85;
   band(s, rx, y, bw, bh, INK);
   txt(s, 'THE PHYSICS', { x: rx + 0.34, y: y + 0.32, w: bw - 0.68, h: 0.3,
-    fontFace: MONO, fontSize: 11, bold: true, color: 'AFC2FF', charSpacing: 1.5 });
+    fontFace: MONO, fontSize: 11, bold: true, color: STEELLT, charSpacing: 1.8 });
   txt(s, 'What the\nevidence implies', { x: rx + 0.34, y: y + 0.72, w: bw - 0.68, h: 0.9,
-    fontFace: DISPLAY, fontSize: 24, bold: true, color: WHITE, lineSpacing: 30 });
+    fontFace: DISPLAY, fontSize: 24, color: WHITE, lineSpacing: 30, charSpacing: -0.5 });
   txt(s, 'Age, traffic, trucks, span, weather. No rating among them.',
     { x: rx + 0.34, y: y + 1.62, w: bw - 0.68, h: 0.4,
       fontFace: SANS, fontSize: 13, color: DIMINK });
 
-  band(s, M, y + bh + 0.42, COL, 0.72, SIGNAL);
+  band(s, M, y + bh + 0.4, COL, 0.7, SIGNAL);
   txt(s, 'When they stop agreeing, that disagreement is the product.',
-    { x: M, y: y + bh + 0.6, w: COL, h: 0.4, align: 'center',
-      fontFace: DISPLAY, fontSize: 19, bold: true, color: WHITE });
+    { x: M + 0.34, y: y + bh + 0.56, w: COL - 0.68, h: 0.4,
+      fontFace: DISPLAY, fontSize: 19, color: WHITE, charSpacing: -0.4 });
   s.addNotes('Slow down here. Two accounts of the same bridge. The model is graded against the ' +
     'inspector rating but never gets to read one. The product is not a risk score. It is the ' +
     'contradiction.');
@@ -125,12 +123,12 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
 
 // ══════════════════════════════════════ 05 THE DOCKET (screenshot)
 {
-  const s = slide(INK);
+  const s = slide(PAPER);
   label(s, 'what we built', M, 0.85, SIGNAL, 6);
-  head(s, 'Not a dashboard.\nA docket.', M, 1.25, { color: WHITE, size: 44, w: 4.6, h: 1.9 });
+  head(s, 'Not a dashboard.\nA docket.', M, 1.25, { color: INK, size: 44, w: 4.6, h: 1.9 });
   txt(s, 'A ranked list of the bridges whose file has drifted furthest from the evidence — ' +
          'capped to what an inspection team can actually visit in a quarter.',
-    { x: M, y: 3.5, w: 4.4, h: 1.6, fontFace: SANS, fontSize: 15, color: DIMINK,
+    { x: M, y: 3.5, w: 4.4, h: 1.6, fontFace: SANS, fontSize: 15, color: DIMPAP,
       lineSpacing: 24 });
   txt(s, 'RHODE ISLAND · 804 STRUCTURES\n12 FLAGGED FOR IMMEDIATE INSPECTION',
     { x: M, y: 5.6, w: 4.6, h: 0.8, fontFace: MONO, fontSize: 10.5, color: SIGNAL,
@@ -142,18 +140,18 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
 
 // ══════════════════════════════════════ 06 SCALE (screenshot)
 {
-  const s = slide(INK);
-  label(s, 'coverage', M, 0.78, SIGNAL, 6);
+  const s = slide(PAPER);
+  label(s, 'coverage', M, 0.85, SIGNAL, 6);
   txt(s, [
-    { text: fmt(NAT.total), options: { fontFace: DISPLAY, fontSize: 62, bold: true,
-                                        color: WHITE, charSpacing: -1 } },
+    { text: fmt(NAT.total), options: { fontFace: DISPLAY, fontSize: 62,
+                                        color: INK, charSpacing: -1.9 } },
     { text: '   bridges. Zero sensors installed.',
-      options: { fontFace: DISPLAY, fontSize: 30, bold: true, color: DIMINK } },
+      options: { fontFace: DISPLAY, fontSize: 30, color: DIMPAP } },
   ], { x: M, y: 1.12, w: COL, h: 1.0, valign: 'middle' });
   txt(s, `Every rated structure in the country, drawn in the browser from a 10MB file. ` +
          `${fmt(NAT.poor_total)} are rated poor by their own inspectors. This view does not ` +
          `even need our server.`,
-    { x: M, y: 2.15, w: 10.9, h: 0.7, fontFace: SANS, fontSize: 15, color: DIMINK,
+    { x: M, y: 2.15, w: 10.9, h: 0.7, fontFace: SANS, fontSize: 15, color: DIMPAP,
       lineSpacing: 23 });
   bleed(s, 'world.png', M, 3.1, 12.2);
   s.addNotes('Let scale land. The whole country, live in the browser, and this view does not ' +
@@ -175,8 +173,8 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   const cw = (COL - 3 * 0.4) / 4, y = 2.85;
   steps.forEach(([n, k, t], i) => {
     const x = M + i * (cw + 0.4);
-    txt(s, n, { x, y, w: cw, h: 0.7, fontFace: DISPLAY, fontSize: 46, bold: true,
-      color: i === 3 ? SIGNAL : 'C9C4BA', charSpacing: -1 });
+    txt(s, n, { x, y, w: cw, h: 0.7, fontFace: DISPLAY, fontSize: 46,
+      color: i === 3 ? SIGNAL : 'C9C4BA', charSpacing: -1.4 });
     band(s, x, y + 0.86, cw, 0.05, i === 3 ? SIGNAL : INK);
     txt(s, k, { x, y: y + 1.06, w: cw, h: 0.3,
       fontFace: MONO, fontSize: 10.5, bold: true, color: INK, charSpacing: 1.3 });
@@ -244,14 +242,13 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
     txt(s, k, { x: M, y: ry, w: 5.4, h: 0.7, valign: 'middle',
       fontFace: SANS, fontSize: 20, color: c, bold: i === 1 });
     txt(s, v, { x: M + 5.6, y: ry - 0.1, w: 1.6, h: 0.9, valign: 'middle', align: 'right',
-      fontFace: DISPLAY, fontSize: 54, bold: true, color: c, charSpacing: -1 });
+      fontFace: DISPLAY, fontSize: 54, color: c, charSpacing: -1.6 });
     txt(s, 'of 166', { x: M + 7.35, y: ry, w: 2, h: 0.7, valign: 'middle',
       fontFace: SANS, fontSize: 15, color: SLATE });
   });
   band(s, M, 5.85, 8.3, 0.05, SIGNAL);
   txt(s, 'On the raw count, the version with no model in it wins.',
-    { x: M, y: 6.05, w: 10.6, h: 0.45, fontFace: DISPLAY, fontSize: 21, bold: true,
-      color: SIGNAL });
+    { x: M, y: 6.05, w: 10.6, h: 0.45, fontFace: DISPLAY, fontSize: 21, color: SIGNAL });
   txt(s, 'That is printed in our own product, not buried in an appendix.',
     { x: M, y: 6.58, w: 10.6, h: 0.4, fontFace: SANS, fontSize: 15, color: DIMINK });
   s.addNotes('Do not soften this. Say out loud that the dumb baseline beats us, 40 to 38, and ' +
@@ -264,8 +261,8 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   label(s, 'so why does the model earn its place', M, 0.85, PALE, 9);
   hero(s, '108', M - 0.24, 1.3, 9, { size: 250, color: WHITE, tracking: -9, h: 3.1 });
   txt(s, 'of those 166 failures were on bridges\nthe record still called FINE.',
-    { x: M, y: 4.6, w: 11, h: 1.3, fontFace: DISPLAY, fontSize: 31, bold: true, color: WHITE,
-      lineSpacing: 40 });
+    { x: M, y: 4.6, w: 11, h: 1.3, fontFace: DISPLAY, fontSize: 31, color: WHITE,
+      lineSpacing: 40, charSpacing: -0.7 });
   txt(s, 'Sorting by the worst rating is blind to every one of them, by construction. ' +
          'It can only point at bridges you already worry about.',
     { x: M, y: 6.15, w: 10.6, h: 0.8, fontFace: SANS, fontSize: 16, color: PALE, lineSpacing: 24 });
@@ -276,9 +273,9 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
 
 // ══════════════════════════════════════ 11 ZERO vs 25
 {
-  const s = slide(PAPER);
-  label(s, 'the same 108 failures, two ways of choosing', M, 0.85, DIMPAP, 9);
-  head(s, 'One of them found none.', M, 1.22, { color: INK, size: 42, h: 0.9 });
+  const s = slide(INK);
+  label(s, 'the same 108 failures, two ways of choosing', M, 0.85, DIMINK, 9);
+  head(s, 'One of them found none.', M, 1.22, { color: WHITE, size: 42, h: 0.9 });
 
   const y = 2.75, cw = 5.35;
   const cols = [
@@ -290,29 +287,29 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   cols.forEach(([k, v, c, t], i) => {
     const x = M + i * (cw + 0.85);
     txt(s, k, { x, y, w: cw, h: 0.3,
-      fontFace: MONO, fontSize: 11, bold: true, color: i ? SIGNAL : DIMPAP, charSpacing: 1.5 });
+      fontFace: MONO, fontSize: 11, bold: true, color: i ? SIGNAL : DIMINK, charSpacing: 1.8 });
     txt(s, v, { x: x - 0.1, y: y + 0.42, w: cw, h: 2.1, valign: 'middle',
-      fontFace: DISPLAY, fontSize: 168, bold: true, color: c, charSpacing: -6 });
-    band(s, x, y + 2.7, cw, i ? 0.07 : 0.04, i ? SIGNAL : 'C9C4BA');
+      fontFace: DISPLAY, fontSize: 168, color: c, charSpacing: -5 });
+    band(s, x, y + 2.7, cw, i ? 0.07 : 0.04, i ? SIGNAL : '3A3E44');
     txt(s, t, { x, y: y + 2.92, w: cw - 0.2, h: 1.0, valign: 'top',
-      fontFace: SANS, fontSize: 15.5, color: i ? INK : DIMPAP, lineSpacing: 24 });
+      fontFace: SANS, fontSize: 15.5, color: i ? WHITE : DIMINK, lineSpacing: 24 });
   });
   txt(s, 'A failure on a bridge the file still calls fine is the only kind that carries a warning. ' +
          'That column is the product.',
-    { x: M, y: 6.5, w: COL, h: 0.5, fontFace: SANS, fontSize: 15, color: INK, bold: true });
+    { x: M, y: 6.5, w: COL, h: 0.5, fontFace: SANS, fontSize: 15, color: WHITE, bold: true });
   s.addNotes('This is the peak. Worst-first found zero of the 108. We found 25. And a failure on ' +
     'a bridge nobody was worried about is the only kind of failure that carries any warning.');
 }
 
 // ══════════════════════════════════════ 12 PROVE IT LIVE (screenshot)
 {
-  const s = slide(INK);
+  const s = slide(PAPER);
   label(s, 'and you can test it yourself, right now', M, 0.85, SIGNAL, 9);
   head(s, 'Pick a state and a year.\nIt grades itself.',
-       M, 1.22, { color: WHITE, size: 30, w: 6.1, h: 1.6 });
+       M, 1.22, { color: INK, size: 30, w: 6.1, h: 1.6 });
   txt(s, 'The server pulls that year’s federal file, scores every bridge with the 2015 model, ' +
          'ranks them — then pulls the 2025 file and checks what actually happened.',
-    { x: M, y: 3.05, w: 5.9, h: 1.1, fontFace: SANS, fontSize: 14.5, color: DIMINK,
+    { x: M, y: 3.05, w: 5.9, h: 1.1, fontFace: SANS, fontSize: 14.5, color: DIMPAP,
       lineSpacing: 22 });
 
   bleed(s, 'timemachine.png', 7.15, 1.3, 6.9);
@@ -326,9 +323,9 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   lines.forEach(([n, t, hi], i) => {
     const ly = y + 0.44 + i * 0.62;
     txt(s, n, { x: M, y: ly, w: 1.45, h: 0.48, valign: 'middle', align: 'right',
-      fontFace: DISPLAY, fontSize: hi ? 21 : 27, bold: true, color: hi ? SIGNAL : WHITE });
+      fontFace: DISPLAY, fontSize: hi ? 21 : 27, color: hi ? SIGNAL : INK });
     txt(s, t, { x: M + 1.68, y: ly, w: 4.4, h: 0.48, valign: 'middle',
-      fontFace: SANS, fontSize: 13.5, color: hi ? WHITE : DIMINK });
+      fontFace: SANS, fontSize: 13.5, color: hi ? INK : DIMPAP });
   });
   txt(s, 'The base rate and the baseline that beats us are printed on screen every time — ' +
          'including on the states where we lose.',
@@ -360,7 +357,7 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
       fontFace: SANS, fontSize: 14.5, color: DIMPAP, lineSpacing: 22 });
   });
   txt(s, 'A system that cannot tell you where it stops working is not a second opinion. It is a guess.',
-    { x: M, y: 6.15, w: COL, h: 0.5, fontFace: DISPLAY, fontSize: 20, bold: true, color: INK });
+    { x: M, y: 6.15, w: COL, h: 0.5, fontFace: DISPLAY, fontSize: 20, color: INK });
   s.addNotes('Do not rush this. All four are enforced in the running product where a judge can ' +
     'check them, including the miss we display on purpose.');
 }
@@ -370,7 +367,7 @@ const MUTE   = '9AA0A8';   // the losing side of a comparison
   const s = slide(INK);
   label(s, 'in closing', M, 0.85, SLATE, 6);
   txt(s, 'We did not simulate\na single bridge.', { x: M, y: 1.3, w: 11, h: 2.0,
-    fontFace: DISPLAY, fontSize: 52, bold: true, color: WHITE, lineSpacing: 64 });
+    fontFace: DISPLAY, fontSize: 52, color: WHITE, lineSpacing: 64, charSpacing: -1.5 });
   band(s, M, 3.5, 2.2, 0.11, SIGNAL);
   txt(s, `${fmt(S.n_records || 234801)} real inspection filings from the US federal government, ` +
          `1992 to 2025. Both halves of the system are deployed and running tonight, and the ` +

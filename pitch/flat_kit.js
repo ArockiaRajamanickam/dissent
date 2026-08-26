@@ -31,6 +31,7 @@ const SIGNAL = 'E8412F';   // the one saturated accent: disagreement, and only t
 const STEEL  = '1F4FD8';   // the physics witness
 const SLATE  = '6B7280';   // muted support text
 const WHITE  = 'FFFFFF';
+const STEELLT= '6E9CFF';   // STEEL lifted for use on INK (2.9:1 -> 7.0:1)
 const DIMINK = '8A8F98';   // muted text on ink
 const DIMPAP = '767B84';   // muted text on paper
 
@@ -78,8 +79,9 @@ const label = (s, t, x, y, color, w, align) => txt(s, String(t).toUpperCase(), {
 /** The headline. Big, flush left, never centred, never more than three lines. */
 const head = (s, t, x, y, o = {}) => txt(s, t, {
   x, y, w: o.w || COL, h: o.h || 1.6, valign: 'top',
-  fontFace: DISPLAY, fontSize: o.size || 40, bold: true,
+  fontFace: DISPLAY, fontSize: o.size || 40,   // no bold: Arial Black IS the bold
   color: o.color || WHITE, lineSpacing: (o.size || 40) * 1.12,
+  charSpacing: o.tracking == null ? -0.8 : o.tracking,
 });
 
 const body = (s, t, x, y, w, o = {}) => txt(s, t, {
@@ -91,8 +93,8 @@ const body = (s, t, x, y, w, o = {}) => txt(s, t, {
 /** A hero number. One per slide, maximum. */
 const hero = (s, n, x, y, w, o = {}) => txt(s, String(n), {
   x, y, w, h: o.h || 2.3, valign: 'middle', align: o.align || 'left',
-  fontFace: DISPLAY, fontSize: o.size || 150, bold: true, color: o.color || WHITE,
-  charSpacing: o.tracking == null ? -2 : o.tracking,
+  fontFace: DISPLAY, fontSize: o.size || 150, color: o.color || WHITE,
+  charSpacing: o.tracking == null ? -(o.size || 150) * 0.03 : o.tracking,
 });
 
 /** Screenshot, aspect-fit into a box, with a real cast shadow so it sits ON the
@@ -121,11 +123,7 @@ const bleed = (s, file, x, y, w, o = {}) => {
   const d = DIMS[file];
   if (!d) throw new Error('no dims for ' + file);
   const h = w * d.h / d.w;
-  s.addImage({
-    path: path.join(SHOT, file), x, y, w, h,
-    shadow: { type: 'outer', color: '000000', blur: 26, offset: 8, angle: 90,
-              opacity: o.shadow == null ? 0.34 : o.shadow },
-  });
+  s.addImage({ path: path.join(SHOT, file), x, y, w, h });
   return { x, y, w, h };
 };
 
@@ -139,7 +137,7 @@ const pageNo = (s, color) => { s.slideNumber = {
 
 module.exports = {
   p, W, H, M, COL,
-  INK, PAPER, SIGNAL, STEEL, SLATE, WHITE, DIMINK, DIMPAP,
+  INK, PAPER, SIGNAL, STEEL, STEELLT, SLATE, WHITE, DIMINK, DIMPAP,
   DISPLAY, SANS, MONO,
   slide, band, txt, label, head, body, hero, shot, bleed, caption, pageNo,
   fmt, pct, S, NAT, CT, FINE, POOR, IDX,
