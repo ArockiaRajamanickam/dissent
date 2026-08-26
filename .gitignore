@@ -9,3 +9,5 @@ data/national/
 pitch/node_modules/
 pitch/slide-*.jpg
 pitch/*.pdf
+backend/dissent.db
+backend/__pycache__/
