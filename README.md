@@ -44,12 +44,38 @@ worst-rated one.
 - The console also plots the **entire 2025 national file: 621,137 rated structures
   (41,319 poor)**, drawn client-side from a 9.9 MB binary with no backend.
 
+## The API (Render)
+
+**https://dissent-api-jgod.onrender.com** — a FastAPI service holding the trained
+Blind Re-Inspector (168,864 training rows, conformal q90 1.405), doing the work a
+browser cannot:
+
+| Endpoint | What it does |
+|---|---|
+| `GET /api/health` | model provenance, audits run, outcomes filed |
+| `POST /api/score` | live inference on any structure's attributes |
+| `GET /api/audit/{state}` | audits **any of 51 US jurisdictions on demand**: pulls that state's live federal file and live weather and scores every structure server-side (Wyoming: 3,138 structures in 3.9s; Montana: 5,235 in 11.5s) |
+| `POST /api/verify`, `GET /api/ledger` | the write-back loop from the Round 2 design: field outcomes persist as labels for the next build |
+| `GET /api/dossier/{state}/{sid}.pdf` | a real printable case file, rendered server-side |
+
+The audit endpoint is the one that genuinely needs a server: the federal file is
+tens of megabytes and its origin sends no cross-origin headers, so no browser can
+fetch it. The console's **05 LIVE AUDIT** module drives it, and every API-backed
+feature degrades honestly when the free instance is asleep — the pre-computed
+four-state docket never depends on the server.
+
+Run it locally: `cd backend && pip install -r requirements.txt && uvicorn app:app --reload`
+
 ## Repository layout
 
 ```
 pipeline/00_download.sh   fetch the 34 raw FHWA NBI files for Rhode Island
 pipeline/01_ledger.py     parse the panel, build trajectories, mine proxy events
 pipeline/02_weather.py    real weather stressors from the Open-Meteo (ERA5) archive
+backend/app.py           the API: live inference, on-demand state audits, the
+                          verification ledger, server-rendered PDF case files
+backend/export_model.py  persists the trained model for the API to serve
+pipeline/05_exhibit.py   composes Exhibit A: one verified catch, one honest miss
 pipeline/03_model.py      Blind Re-Inspector + conformal calibration + BOCPD +
                           dissent scoring + docket + validation + JSON exports
 site/                     the deployed app (no frameworks, no build step)

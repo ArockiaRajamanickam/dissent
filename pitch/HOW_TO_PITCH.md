@@ -110,6 +110,13 @@ Then open the live console.
    sixteen months before the collapse. It's a reconstruction of the published finding, and the paper
    that disputes that finding is cited right underneath."*
 5. **Switch the jurisdiction chip to VT.** *"Same model, different state, its own docket."*
+6. **Go to 05 LIVE AUDIT, pick a state we never pre-processed, press RUN THE AUDIT.**
+   *"That just pulled Wyoming's live federal file and its live weather onto our server,
+   scored all 3,138 structures, and came back in under four seconds. No browser can do
+   that — the file is tens of megabytes and the government sends no CORS headers. This
+   is the half of the system that needs a real backend."*
+   Then open a dossier and press **FILE AN INSPECTION OUTCOME**: *"and that write-back is
+   the loop we promised in Round 2 — the outcome is now a label for the next build."*
 
 If the wifi is bad: the deck's slide 6 chart and slide 8 map are the same story. Say so and move on.
 
@@ -150,8 +157,16 @@ If the wifi is bad: the deck's slide 6 chart and slide 8 map are the same story.
 > millions of pairs and mine the disagreements."
 
 **"Could this be deployed?"**
-> "It is deployed. That link is live, it costs nothing to run, and the entire pipeline reruns on a laptop
-> in under two minutes."
+> "It is deployed, on both halves. The console is live on Netlify and the model is served by a FastAPI
+> service on Render that scores any US state on demand. The whole thing costs nothing to run and the
+> pipeline reruns on a laptop in under two minutes."
+
+**"Where's the backend? Is it just a static site?"**
+> "No. Open 05 LIVE AUDIT and pick any state — that call goes to our API, which pulls the live federal
+> file and live weather and scores every structure server-side. It also serves live inference, generates
+> the PDF case files, and stores inspection outcomes in a database. The static half is only the
+> pre-computed four-state docket, deliberately, so a sleeping free-tier server can never break the demo."
+
 
 ---
 
