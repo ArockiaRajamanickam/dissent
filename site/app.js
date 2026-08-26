@@ -292,7 +292,7 @@ function openDossier(sid) {
       ? `Physics, working blind, puts this structure at <b>${a.pred.toFixed(1)}</b>
          (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}). The record on file says
          <b>${a.recorded}</b>: <b>${gap.toFixed(1)} steps sunnier</b> than the evidence.`
-      : `The record calls this ${a.recorded === 8 ? 'an' : 'a'} <b>${a.recorded}</b>. Physics, never shown the record, calls it
+      : `The record calls this ${a.recorded === 8 ? 'an' : 'a'} <b>${a.recorded}</b>. Physics, never given a rating as an input, calls it
          <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
          The official record is <b>${gap.toFixed(1)} rating steps more optimistic</b> than the evidence supports.`;
   } else if ((a.pr_trend ?? 0) === dom && dom > 0.05) {

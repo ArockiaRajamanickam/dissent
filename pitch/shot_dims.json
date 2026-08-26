@@ -1,0 +1,58 @@
+{
+ "docket_full.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "docket_table.png": {
+  "w": 2016,
+  "h": 1176
+ },
+ "dossier_full.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "dossier_panel.png": {
+  "w": 1560,
+  "h": 2100
+ },
+ "exhibit_a.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "index.png": {
+  "w": 1892,
+  "h": 2770
+ },
+ "liveaudit.png": {
+  "w": 1916,
+  "h": 1044
+ },
+ "method.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "morandi.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "scoreboard.png": {
+  "w": 1892,
+  "h": 570
+ },
+ "timemachine.png": {
+  "w": 1892,
+  "h": 2070
+ },
+ "withheld.png": {
+  "w": 1892,
+  "h": 790
+ },
+ "world_full.png": {
+  "w": 3360,
+  "h": 2100
+ },
+ "world_map.png": {
+  "w": 3360,
+  "h": 1922
+ }
+}
