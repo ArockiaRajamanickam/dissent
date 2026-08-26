@@ -112,7 +112,19 @@ Then open the live console.
    sixteen months before the collapse. It's a reconstruction of the published finding, and the paper
    that disputes that finding is cited right underneath."*
 5. **Switch the jurisdiction chip to VT.** *"Same model, different state, its own docket."*
-6. **Go to 05 LIVE AUDIT, pick a state we never pre-processed, press RUN THE AUDIT.**
+6. **Go to 05 LIVE AUDIT. Ask a judge to name any US state.** Then press CHECK WHAT CHANGED.
+   *"The server just pulled two federal files, last year's and this year's, found every bridge whose
+   official rating fell two or more steps, and scored each one from last year's data. In New Hampshire
+   that's seven bridges that dropped, and we had already filed a dissent on one of them. That sounds
+   small until you see the base rate: we dissent on 6% of structures, so a bridge that fell was 2.4
+   times likelier to be one we'd flagged. You picked the state. We didn't."*
+7. **Scroll to the National Dissent Index.** *"Every audit also measures how much sunnier each state's
+   filings run than the evidence. This table is built from real audits, and it's the first
+   cross-jurisdiction comparison of record optimism we know of. California's records run about
+   0.7 of a rating step sunnier than physics; West Virginia's run the other way."*
+8. **Drag a slider in "Ask the physics witness anything."** *"That's the model, live on the server,
+   for a bridge that doesn't exist."*
+9. **Or run a full audit of a state we never pre-processed.**
    *"That just pulled Wyoming's live federal file and its live weather onto our server,
    scored all 3,138 structures, and came back in under four seconds. No browser can do
    that — the file is tens of megabytes and the government sends no CORS headers. This

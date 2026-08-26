@@ -764,6 +764,9 @@ function renderLive() {
     <p class="note">This endpoint cannot run in a browser: the federal file is tens of megabytes and
     its origin sends no cross-origin headers. It is the half of the system that needs a server.</p>
     <div id="api-status" class="api-status"></div>
+    <p class="note">The API is open and documented: <a href="${API_BASE}/docs" target="_blank"
+    rel="noopener">${API_BASE.replace('https://', '')}/docs</a> — six endpoints, live inference,
+    on-demand audits, change detection, the verification ledger and PDF case files.</p>
     <div class="ctrlbar">
       <select id="live-state" class="live-select mono">${opts}</select>
       <button class="btn" id="live-run">RUN THE AUDIT</button>
