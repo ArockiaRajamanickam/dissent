@@ -898,7 +898,7 @@ function natClick(e) {
   L.popup({ maxWidth: 260, minWidth: 240 }).setLatLng([nat.lat[best], nat.lon[best]])
     .setContent(satMiniHTML(nat.lat[best], nat.lon[best]) +
       `<b>${nat.meta.states[nat.stIdx[best]]}</b> | national snapshot 2025<br>` +
-      `condition <b>${c}</b>/9 (${c <= 4 ? 'poor' : c <= 6 ? 'fair' : 'good'})<br>` +
+      `bridge or culvert | condition <b>${c}</b>/9 (${c <= 4 ? 'poor' : c <= 6 ? 'fair' : 'good'})<br>` +
       `built ${nat.built[best] || 'unknown'} | ADT ${fmt(nat.adt[best] || null)}<br>` +
       `<span style="font-size:10px">deep audit runs in the four fleet states</span>`)
     .openOn(__map);
