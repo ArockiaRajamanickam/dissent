@@ -424,3 +424,7 @@ table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font
 .map-mode button:hover { color: #fff; }
 .map-mode button.active { background: var(--crimson); color: #fff; border-color: var(--crimson); }
 .nat-canvas { pointer-events: none; }
+
+#base-mode { top: 52px; }
+.doss-sat-wrap { margin-top: 2px; }
+#doss-sat { height: 280px; border: 1px solid var(--line); border-bottom: none; background: #111; }

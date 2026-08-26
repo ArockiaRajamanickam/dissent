@@ -316,6 +316,9 @@ function openDossier(sid) {
     ${trajChart(a.traj, a.cps)}
     ${figbar(LEG.record + LEG.physics + LEG.bandc + LEG.cp,
              'From the federal record, 1992-2025; red bars are the changepoint detector on the record-vs-physics residual.')}
+    ${a.lat ? '<div class="doss-sat-wrap"><div id="doss-sat"></div>' +
+      '<div class="figbar"><span class="legend"><span>THE STRUCTURE FROM ORBIT</span></span>' +
+      '<span>Esri World Imagery; crosshair marks the recorded coordinates.</span></div></div>' : ''}
     <div class="dgrid">
       <div class="dcol"><h4>Why physics disagrees (top evidence)</h4>
         <ul class="attr">${(a.attr && a.attr.length ? a.attr : [['no strong single driver', 0]]).map(([f, d]) =>
@@ -339,12 +342,28 @@ function openDossier(sid) {
   $('#dossier-overlay').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   $('#dossier-body .close').onclick = closeDossier;
+  if (a.lat && document.getElementById('doss-sat')) {
+    setTimeout(() => {
+      try {
+        window.__dossMap = L.map('doss-sat', { zoomControl: false, attributionControl: false,
+          dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false,
+          keyboard: false, touchZoom: false });
+        L.tileLayer(TILES.sat[0], { maxZoom: 18 }).addTo(window.__dossMap);
+        window.__dossMap.setView([a.lat, a.lon], 17);
+        L.circleMarker([a.lat, a.lon], { radius: 14, color: '#C6283C', weight: 2.5,
+          fill: false }).addTo(window.__dossMap);
+        L.circleMarker([a.lat, a.lon], { radius: 2, color: '#C6283C', weight: 2,
+          fillColor: '#C6283C', fillOpacity: 1 }).addTo(window.__dossMap);
+      } catch (err) { /* satellite panel is decorative */ }
+    }, 120);
+  }
   document.querySelectorAll('#docket-list tr.row').forEach(r =>
     r.classList.toggle('hl', r.dataset.sid === sid));
 }
 function closeDossier() {
   $('#dossier-overlay').classList.add('hidden');
   document.body.style.overflow = '';
+  if (window.__dossMap) { try { window.__dossMap.remove(); } catch (e) {} window.__dossMap = null; }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDossier(); });
 $('#dossier-overlay').addEventListener('click', e => { if (e.target.id === 'dossier-overlay') closeDossier(); });
@@ -361,14 +380,26 @@ function toast(msg) {
 const BAND_COLOR = { inspect: '#B23348', schedule: '#B8862D', watch: '#3A5CA8', clear: '#5A6488' };
 let __map = null;
 const __markers = {};
+let __baseLayer = null;
+const TILES = {
+  dark: ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+         'Esri, HERE, Garmin | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'],
+  sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        'Esri, Maxar, Earthstar Geographics'],
+};
+function setBasemap(kind) {
+  if (!__map) return;
+  if (__baseLayer) __map.removeLayer(__baseLayer);
+  __baseLayer = L.tileLayer(TILES[kind][0], { attribution: TILES[kind][1], maxZoom: 18 }).addTo(__map);
+  __baseLayer.bringToBack();
+  document.querySelectorAll('#base-mode button').forEach(b =>
+    b.classList.toggle('active', b.dataset.base === kind));
+}
 async function initMap() {
   if (typeof L === 'undefined') { $('#map-side').style.display = 'none'; return; }
   __map = L.map('map', { scrollWheelZoom: true, zoomControl: true });
   __map.setView([41.65, -71.5], 10);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Esri, HERE, Garmin | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 16,
-  }).addTo(__map);
+  setBasemap('dark');
   try {
     const ri = await fetch('assets/ri.geojson').then(r => r.ok ? r.json() : null);
     if (ri) L.geoJSON(ri, { style: { color: '#8A93B8', weight: 1.2,
@@ -414,6 +445,12 @@ function rebuildMarkers() {
                    '<button data-mode="national">NATIONAL 621K</button>';
     $('#map-side').appendChild(mm);
     mm.querySelectorAll('button').forEach(b => b.onclick = () => setMapMode(b.dataset.mode));
+    const bm = L.DomUtil.create('div', 'map-mode mono');
+    bm.id = 'base-mode';
+    bm.innerHTML = '<button data-base="dark" class="active">DARK</button>' +
+                   '<button data-base="sat">SATELLITE</button>';
+    $('#map-side').appendChild(bm);
+    bm.querySelectorAll('button').forEach(b => b.onclick = () => setBasemap(b.dataset.base));
   }
 }
 function highlightMarker(sid, on) {
