@@ -435,6 +435,7 @@ pooled = dict(
     event_recall=round(recall, 3),
     median_lead=float(np.median(leads)) if leads else 0,
     budget_frac=BUDGET_FRAC, states=STATES, state_names=STATE_NAME,
+    controls=CONTROLS,
     bands=dict(inspect=INSPECT_NOW, schedule=SCHEDULE, watch=WATCH))
 
 def is_newbuild(last):

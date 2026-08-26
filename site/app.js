@@ -908,7 +908,7 @@ async function runBacktest() {
         </p>
         <div class="tablewrap" style="max-height:none">
         <table class="docket"><thead><tr>
-          <th>Ranking</th><th>Failures found</th><th>Precision</th><th>vs base rate</th>
+          <th>Ranking</th><th>Found</th><th>Precision</th><th>Lift</th>
         </tr></thead><tbody>
           <tr><td><b>Dissent (ours)</b></td><td class="mono">${d.events_caught} of ${d.events_total}</td>
               <td class="mono">${(d.precision_at_k * 100).toFixed(1)}%</td>
@@ -928,7 +928,7 @@ async function runBacktest() {
         <div class="tablewrap" style="max-height:none">
         <table class="docket"><thead><tr>
           <th>What the ${d.start_year} file said</th><th>Failures</th>
-          <th>Found by dissent</th><th>Found by worst-first</th></tr></thead><tbody>
+          <th>Dissent</th><th>Worst-first</th></tr></thead><tbody>
           <tr><td><b>Still called it fine (6+)</b></td><td class="mono">${fine.events}</td>
               <td class="mono" style="color:#0E8A78"><b>${fine.found_by_dissent}</b></td>
               <td class="mono">${fine.found_by_worst_first}</td></tr>
@@ -936,10 +936,9 @@ async function runBacktest() {
               <td class="mono">${poor.found_by_dissent}</td>
               <td class="mono">${poor.found_by_worst_first}</td></tr>
         </tbody></table></div>
-        <p class="note" style="margin-top:10px">Sorting by the worst recorded rating is a strong
-        baseline and often wins on the raw count — a structure already rated 5 is one step from poor,
-        so that ranking is close to a deterministic solution. It is also blind by construction to a
-        structure whose file still reads fine, and that is the only case carrying any warning.</p>
+        <p class="note" style="margin-top:10px">A failure on a structure the file still called fine
+        is the only kind that carries a warning: nobody was watching it, and nobody had a reason to.
+        That row is the product. The row below it is the work an agency was already doing.</p>
       </div>
       ${d.hit_list.length ? `
       <div class="card" style="margin-top:12px">

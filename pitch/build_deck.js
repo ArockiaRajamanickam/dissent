@@ -259,7 +259,7 @@ if (flagTraj && flagTraj.length) {
     [fmt(S.n_records), 'REAL INSPECTION\nFILINGS AUDITED', NAVY],
     [String(S.mae_test), 'RATING STEPS OF ERROR\nON UNSEEN YEARS', NAVY],
     [pct(S.coverage), `CONFORMAL COVERAGE\n(TARGET 90%, REPORTED HONESTLY)`, NAVY],
-    [pct(S.event_recall), `OF HELD-OUT FAILURES CAUGHT EARLY\n${lift}× BETTER THAN CHANCE`, CRIMSON],
+    [pct(S.event_recall), `OF HELD-OUT FAILURES CAUGHT EARLY\n${S.controls.lift_vs_rating_matched.toFixed(2)}× A RATING-MATCHED PICK`, CRIMSON],
     [`${S.median_lead} yrs`, 'MEDIAN WARNING\nBEFORE THE RECORD MOVED', CRIMSON],
   ];
   const tw = (11.7 - 4 * 0.22) / 5;
@@ -272,14 +272,28 @@ if (flagTraj && flagTraj.length) {
     s.addText(t, { x: x + 0.15, y: 3.62, w: tw - 0.3, h: 1.05, isTextBox: true, margin: 0, valign: 'top',
       fontFace: MONO, fontSize: 8, color: GREY, lineSpacing: 11.5 });
   });
-  card(s, M, 5.1, 11.7, 1.35, PAPER);
-  s.addText('Why an alert budget, not an accuracy score', {
-    x: M + 0.25, y: 5.25, w: 11.2, h: 0.3, isTextBox: true, margin: 0,
+  // The control a sharp judge will ask for, answered before they ask.
+  const CT = S.controls, FINE = CT.segments.record_still_fine, POOR = CT.segments.record_already_poor;
+  card(s, M, 5.05, 11.7, 1.75, PAPER);
+  s.addText('“Why not just sort by the worst recorded rating?”', {
+    x: M + 0.25, y: 5.18, w: 11.2, h: 0.3, isTextBox: true, margin: 0,
     fontFace: MONO, fontSize: 10.5, bold: true, color: NAVY, charSpacing: 0.8 });
-  s.addText('A model that flags everything catches everything and helps nobody. Ours is scored the way an inspection team actually works: a fixed number of alerts per quarter, and we count only the real failures that fall inside it.',
-    { x: M + 0.25, y: 5.6, w: 11.2, h: 0.7, isTextBox: true, margin: 0,
-      fontFace: BODY, fontSize: 13, color: INK, lineSpacing: 17 });
-  s.addNotes('This is the slide a technical judge will interrogate. Emphasise: frozen model, pure holdout, budgeted alerts. The coverage number is deliberately reported below target because we refuse to retune on test years.');
+  s.addText(`Because it can only ever point at bridges you already worry about. Of the ${CT.events} held-out failures, ${POOR.n} were on structures the record already called bad — worst-first finds ${POOR.worst} of those, because that ranking is nearly a definition of the answer. The other ${FINE.n} were on structures the paperwork still called fine.`,
+    { x: M + 0.25, y: 5.5, w: 7.4, h: 1.1, isTextBox: true, margin: 0, valign: 'top',
+      fontFace: BODY, fontSize: 12.5, color: INK, lineSpacing: 16 });
+  const bx = M + 8.0;
+  s.addShape(p.ShapeType.rect, { x: bx, y: 5.46, w: 3.65, h: 1.2, fill: { color: 'F4F1EA' } });
+  s.addText(`ON THE ${FINE.n} FAILURES THE RECORD STILL CALLED FINE`, {
+    x: bx + 0.18, y: 5.55, w: 3.3, h: 0.28, isTextBox: true, margin: 0,
+    fontFace: MONO, fontSize: 7.5, color: GREY, charSpacing: 0.5 });
+  s.addText([
+    { text: `${FINE.worst}`, options: { fontFace: HEAD, fontSize: 21, bold: true, color: GREY } },
+    { text: '  found by worst-first\n', options: { fontFace: MONO, fontSize: 8.5, color: GREY } },
+    { text: `${FINE.ours}`, options: { fontFace: HEAD, fontSize: 21, bold: true, color: CRIMSON } },
+    { text: '  found by dissent', options: { fontFace: MONO, fontSize: 8.5, color: CRIMSON } },
+  ], { x: bx + 0.18, y: 5.86, w: 3.3, h: 0.72, isTextBox: true, margin: 0, valign: 'top',
+       lineSpacing: 19 });
+  s.addNotes(`This is the slide a technical judge will interrogate. Frozen model, pure holdout, budgeted alerts. Do NOT claim we beat the naive baseline outright: on raw count it catches ${CT.worst_recorded_caught} of ${CT.events} and we catch ${CT.flagged}. Claim the true and stronger thing: on the ${FINE.n} failures where the record still read fine, worst-first found ${FINE.worst} and we found ${FINE.ours}. Against a rating-matched blind pick we run ${CT.lift_vs_rating_matched}x. Coverage is reported below target because we refuse to retune on test years.`);
 }
 
 // ============================================================ 8. SCALE

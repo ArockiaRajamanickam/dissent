@@ -15,9 +15,10 @@ Deck: `DISSENT_Nexus_Network_Pitch.pptx` (12 slides) · Live: https://dissent-ne
 > and is never shown a single inspector's opinion. When the two stop agreeing, the machine files a
 > dissent: a ranked case file with a dated inspection obligation.
 >
-> We trained it on real federal data up to 2015, hid everything after, and it caught 38 of 166 real
-> failures early, one of them nine years before the paperwork admitted it. It needs no sensors and
-> no budget: every input is public."
+> We trained it on real federal data up to 2015 and hid everything after. Of 166 real failures it had
+> never seen, 108 happened to bridges the paperwork still called fine. Sorting by the worst recorded
+> rating — what an agency does today — found none of those 108. We found 25. That gap is the entire
+> product, and it needs no sensors and no budget: every input is public."
 
 If they only ask one question, that is the answer to all of them.
 
@@ -61,13 +62,25 @@ Walk the six steps in about thirty seconds. Land two things only:
 > for years. The blue line is our model, which never saw the record — it says 6. In 2025 the inspectors
 > came back and filed a 3. We had that structure inside our alert budget nine years earlier."**
 
-**Slide 7 — Validation.**
-> **"We hid the answers and checked. One thousand eight hundred 'the record was forced to catch up'
-> events across four states. The 166 that happen after 2018 the model has never seen. It caught 23% of
-> them inside a 15% alert budget — one and a half times better than chance — with a median warning of
-> three and a half years."**
-If a judge looks skeptical, add: *"A model that flags everything catches everything and helps nobody.
-That's why we score it inside a fixed budget."*
+**Slide 7 — Validation.** *Say the second half. It is the strongest thing you have.*
+> **"We hid the answers and checked. Eighteen hundred 'the record was forced to catch up' events
+> across four states; the 166 after 2018 the model has never seen. It caught 23% inside a 15% alert
+> budget, with a median warning of three and a half years."**
+>
+> **"Then we ran the control that matters. Sorting bridges by their worst recorded rating — no model
+> at all — catches 40 of those 166. We catch 38. On the raw count, the dumb baseline beats us.**
+>
+> **But split those 166 by what the file said at the time. Fifty-eight were bridges the record
+> already called bad; worst-first finds 40 of them, because that ranking is nearly a definition of
+> the answer. The other 108 were bridges the paperwork still called fine. Worst-first finds zero.
+> Not one. We find twenty-five."**
+>
+> **"Sorting by the worst rating can only ever point at bridges you already worry about. The
+> failures that kill people are the ones nobody was worried about."**
+
+If a judge looks skeptical, add: *"And we control for it properly — against a blind pick with the
+same rating mix as ours, we run 1.34 times better. The physics witness carries information the
+paperwork doesn't."*
 
 **Slide 8 — Scale.**
 > **"That's every rated bridge in the United States, 621,137 of them, drawn live in the browser from a
@@ -118,11 +131,27 @@ Then open the live console.
    that's seven bridges that dropped, and we had already filed a dissent on one of them. That sounds
    small until you see the base rate: we dissent on 6% of structures, so a bridge that fell was 2.4
    times likelier to be one we'd flagged. You picked the state. We didn't."*
-7. **Scroll to the National Dissent Index.** *"Every audit also measures how much sunnier each state's
-   filings run than the evidence. This table is built from real audits, and it's the first
-   cross-jurisdiction comparison of record optimism we know of. California's records run about
-   0.7 of a rating step sunnier than physics; West Virginia's run the other way."*
-8. **Drag a slider in "Ask the physics witness anything."** *"That's the model, live on the server,
+7. **Scroll to the National Dissent Index.** *"Every audit also measures how much sunnier each
+   state's filings run than the evidence — all 51 jurisdictions, 621,735 structures. Georgia's
+   records run about 1.3 of a rating step sunnier than physics; West Virginia's run the other way."*
+   Then scroll one block further, to the withheld table, and say this deliberately:
+   *"And twenty-seven states are in this second table with no ranking at all. Our model was
+   calibrated on four cold, wet, Atlantic states. Arizona is five envelope-widths outside that
+   climate. Out there we can't separate 'their inspectors are optimistic' from 'our model is wrong',
+   so we don't publish a number. We still audit them. We just don't pretend."*
+8. **THE TIME MACHINE. Ask a judge for a state and a year.** This is your strongest live moment —
+   do it even if you have to cut something else.
+   *"Pick a state. Pick a year. — Vermont, 2019. Watch: the server is pulling the federal file as it
+   stood in 2019, scoring all 2,748 structures with the model frozen in 2015, ranking them by
+   dissent, and taking the top 15% as its alert list. Now it pulls the 2025 file and grades itself."*
+   Two and a half seconds later, point at the segment table:
+   *"Ninety-three of those bridges crossed into poor by 2025. Thirty-five of them were bridges the
+   2019 file still called fine. Worst-rating-first found one of those thirty-five. We found nine.
+   And notice what else is on this screen — the base rate, and the baseline that beats us on the
+   raw count. We print those every time, including when we lose. You can run this on any state
+   you like; some of them we lose."*
+
+9. **Drag a slider in "Ask the physics witness anything."** *"That's the model, live on the server,
    for a bridge that doesn't exist."*
 9. **Or run a full audit of a state we never pre-processed.**
    *"That just pulled Wyoming's live federal file and its live weather onto our server,
@@ -146,6 +175,25 @@ If the wifi is bad: the deck's slide 6 chart and slide 8 map are the same story.
 **"How do I know it isn't just memorising?"**
 > "The model is frozen at 2015. Calibrated on 2016 to 2018. Every number we quote is from 2019 onward,
 > which it has never seen — 46,541 rows of pure holdout."
+
+**"Why not just sort by the worst recorded rating? Wouldn't that do the same job?"**
+*This is the sharpest question available and you should want it. Answer it in three beats.*
+> "It does better than us on the raw count, and we show that on screen — 40 of 166 versus our 38.
+>
+> But look at what it's finding. Split those failures by what the file said at the time. Fifty-eight
+> were bridges the record already called bad, and worst-first finds 40 of them — of course it does,
+> a bridge rated 5 is one step from poor, so that ranking is almost a definition of the answer, not
+> a prediction of it. The other 108 were bridges the record still called fine. Worst-first finds
+> zero of those. We find 25.
+>
+> So the honest summary is: sorting by rating tells you what you already knew, faster. We're the
+> only one of the two that can tell you something you didn't. And when we control it properly —
+> a blind pick with the same rating mix as ours — we come out 1.34 times better."
+
+**"Isn't that lift small?"**
+> "It is modest and we're not going to dress it up. 1.34 times over a rating-matched control, on
+> 166 events. What makes it worth having isn't the multiplier, it's *where* it applies: on the
+> structures nobody is currently looking at, the alternative isn't a worse number, it's no number."
 
 **"23% doesn't sound high."**
 > "It's 23% inside a 15% budget, so one and a half times chance — and that's the honest number after we
@@ -189,6 +237,13 @@ If the wifi is bad: the deck's slide 6 chart and slide 8 map are the same story.
 - **Don't claim the Washington Bridge as a win.** It's in the deck and the app as a miss. If you claim it
   and a judge opens Exhibit A, you lose the room. The Vermont case is your win.
 - **Don't say "100% accurate" or round 23% up.** The precision *is* the pitch.
+- **Never claim we beat the naive baseline outright.** We don't, on raw count, in most states — and
+  it's on screen. Claim the thing that is true and stronger: worst-first finds *zero* of the 108
+  failures on bridges the record still called fine. If you overclaim here and a judge runs the
+  Time Machine on Ohio, you lose the room.
+- **Don't rank a state we withhold.** California, Texas, Arizona and 24 others sit outside the
+  calibration climate. If a judge asks about California's number, say: "we audit it, we don't rank
+  it, and the app tells you why."
 - **Don't call the Morandi series real measurements.** Say "a reconstruction of the published finding."
 - **Don't oversell India.** Say "the method localises and the data is being created right now," not
   "we've deployed in India."
