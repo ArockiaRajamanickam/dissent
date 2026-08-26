@@ -365,9 +365,9 @@ async function initMap() {
   if (typeof L === 'undefined') { $('#map-side').style.display = 'none'; return; }
   __map = L.map('map', { scrollWheelZoom: true, zoomControl: true });
   __map.setView([41.65, -71.5], 10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 18,
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri, HERE, Garmin | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 16,
   }).addTo(__map);
   try {
     const ri = await fetch('assets/ri.geojson').then(r => r.ok ? r.json() : null);
@@ -658,40 +658,61 @@ const nat = { loaded: false, loading: false, mode: 'fleet',
 async function loadNational() {
   if (nat.loaded || nat.loading) return nat.loaded;
   nat.loading = true;
-  $('#map-legend').innerHTML = '<div>READING THE NATIONAL RECORD… 9.9 MB</div>';
-  const [buf, meta] = await Promise.all([
-    fetch('data/national.bin').then(r => r.arrayBuffer()),
-    fetch('data/national_meta.json').then(r => r.json())]);
-  const dv = new DataView(buf);
-  const n = Math.floor(buf.byteLength / 16);
-  nat.n = n; nat.meta = meta;
-  nat.mx = new Float32Array(n); nat.my = new Float32Array(n);
-  nat.cond = new Int8Array(n); nat.built = new Uint16Array(n);
-  nat.adt = new Uint32Array(n); nat.stIdx = new Uint8Array(n);
-  nat.lat = new Float32Array(n); nat.lon = new Float32Array(n);
+  nat.meta = await fetch('data/national_meta.json').then(r => r.json());
+  const total = nat.meta.total;
+  nat.mx = new Float32Array(total); nat.my = new Float32Array(total);
+  nat.cond = new Int8Array(total); nat.built = new Uint16Array(total);
+  nat.adt = new Uint32Array(total); nat.stIdx = new Uint8Array(total);
+  nat.lat = new Float32Array(total); nat.lon = new Float32Array(total);
   nat.grid = new Map();
-  for (let i = 0; i < n; i++) {
-    const off = i * 16;
-    const lat = dv.getFloat32(off, true), lon = dv.getFloat32(off + 4, true);
-    nat.lat[i] = lat; nat.lon[i] = lon;
-    nat.cond[i] = dv.getInt8(off + 8);
-    nat.built[i] = dv.getUint16(off + 9, true);
-    nat.adt[i] = dv.getUint32(off + 11, true);
-    nat.stIdx[i] = dv.getUint8(off + 15);
-    nat.mx[i] = (lon + 180) / 360;
-    const s = Math.sin(lat * Math.PI / 180);
-    nat.my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
-    const key = (Math.floor(lat * 4)) * 4096 + Math.floor((lon + 180) * 4);
-    let cell = nat.grid.get(key);
-    if (!cell) nat.grid.set(key, cell = []);
-    cell.push(i);
+  const res = await fetch('data/national.bin');
+  const reader = res.body.getReader();
+  let carry = new Uint8Array(0);
+  let i = 0, lastDraw = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    let chunk;
+    if (carry.length) {
+      chunk = new Uint8Array(carry.length + value.length);
+      chunk.set(carry); chunk.set(value, carry.length);
+    } else chunk = value;
+    const usable = chunk.length - (chunk.length % 16);
+    const dv = new DataView(chunk.buffer, chunk.byteOffset, usable);
+    for (let off = 0; off + 16 <= usable && i < total; off += 16, i++) {
+      const lat = dv.getFloat32(off, true), lon = dv.getFloat32(off + 4, true);
+      nat.lat[i] = lat; nat.lon[i] = lon;
+      nat.cond[i] = dv.getInt8(off + 8);
+      nat.built[i] = dv.getUint16(off + 9, true);
+      nat.adt[i] = dv.getUint32(off + 11, true);
+      nat.stIdx[i] = dv.getUint8(off + 15);
+      nat.mx[i] = (lon + 180) / 360;
+      const s = Math.sin(lat * Math.PI / 180);
+      nat.my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+      const key = (Math.floor(lat * 4)) * 4096 + Math.floor((lon + 180) * 4);
+      let cell = nat.grid.get(key);
+      if (!cell) nat.grid.set(key, cell = []);
+      cell.push(i);
+    }
+    carry = chunk.slice(usable);
+    nat.n = i;
+    if (nat.mode === 'national' && i - lastDraw > 60000) {
+      lastDraw = i;
+      $('#map-legend').innerHTML =
+        `<div>STREAMING THE NATIONAL RECORD… ${Math.round(i / total * 100)}%</div>`;
+      try { drawNational(); } catch (err) { /* draw must never kill the stream */ }
+      await new Promise(r => setTimeout(r, 0));
+    }
   }
+  nat.n = i;
   nat.loaded = true; nat.loading = false;
   return true;
 }
 
 function drawNational() {
-  if (!nat.loaded || nat.mode !== 'national' || !__map) return;
+  if (!nat.n || nat.mode !== 'national' || !__map) return;
+  const sz = __map.getSize();
+  if (!sz || sz.x < 10 || sz.y < 10) return;
   if (!nat.canvas) {
     nat.canvas = L.DomUtil.create('canvas', 'nat-canvas');
     __map.getPanes().overlayPane.appendChild(nat.canvas);
@@ -711,18 +732,48 @@ function drawNational() {
   const refMy = 0.5 - Math.log((1 + s0) / (1 - s0)) / (4 * Math.PI);
   const dx = refCp.x - refMx * scale, dy = refCp.y - refMy * scale;
   const px = z >= 9 ? 3 : z >= 7 ? 2 : 1;
-  const colors = ['rgba(58,92,168,0.5)', '#B8862D', '#C6283C'];
-  for (let pass = 0; pass < 3; pass++) {
-    ctx.fillStyle = colors[pass];
-    for (let i = 0; i < nat.n; i++) {
-      const c = nat.cond[i];
-      const cls = c <= 4 ? 2 : c <= 6 ? 1 : 0;
-      if (cls !== pass) continue;
-      const x = nat.mx[i] * scale + dx, y = nat.my[i] * scale + dy;
-      if (x < -4 || y < -4 || x > size.x + 4 || y > size.y + 4) continue;
-      ctx.fillRect(x, y, px, px);
+  if (px <= 2) {
+    // direct pixel-buffer path: all points in ~15ms
+    const img = ctx.createImageData(size.x, size.y);
+    const data = img.data;
+    const W = size.x, H = size.y;
+    // class RGBA: good steel (dim), fair ochre, poor crimson; poor drawn last wins
+    const R = [58, 184, 198], G = [92, 134, 40], B = [168, 45, 60], A = [150, 235, 255];
+    for (let pass = 0; pass < 3; pass++) {
+      for (let i = 0; i < nat.n; i++) {
+        const c = nat.cond[i];
+        const cls = c <= 4 ? 2 : c <= 6 ? 1 : 0;
+        if (cls !== pass) continue;
+        const x = (nat.mx[i] * scale + dx) | 0, y = (nat.my[i] * scale + dy) | 0;
+        if (x < 0 || y < 0 || x >= W - 1 || y >= H - 1) continue;
+        for (let oy = 0; oy < px; oy++) for (let ox = 0; ox < px; ox++) {
+          const p = ((y + oy) * W + x + ox) * 4;
+          data[p] = R[pass]; data[p + 1] = G[pass];
+          data[p + 2] = B[pass]; data[p + 3] = A[pass];
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  } else {
+    const colors = ['rgba(58,92,168,0.6)', '#B8862D', '#C6283C'];
+    for (let pass = 0; pass < 3; pass++) {
+      ctx.fillStyle = colors[pass];
+      for (let i = 0; i < nat.n; i++) {
+        const c = nat.cond[i];
+        const cls = c <= 4 ? 2 : c <= 6 ? 1 : 0;
+        if (cls !== pass) continue;
+        const x = nat.mx[i] * scale + dx, y = nat.my[i] * scale + dy;
+        if (x < -4 || y < -4 || x > size.x + 4 || y > size.y + 4) continue;
+        ctx.fillRect(x, y, px, px);
+      }
     }
   }
+}
+let __natRaf = false;
+function drawNationalLive() {
+  if (__natRaf) return;
+  __natRaf = true;
+  requestAnimationFrame(() => { __natRaf = false; drawNational(); });
 }
 
 function natLegend() {
@@ -745,17 +796,22 @@ async function setMapMode(mode) {
   document.querySelectorAll('#map-mode button').forEach(b =>
     b.classList.toggle('active', b.dataset.mode === mode));
   if (mode === 'national') {
-    const ok = await loadNational();
-    if (!ok) { nat.mode = 'fleet'; return; }
     Object.values(__markers).forEach(mk => __map.removeLayer(mk));
+    __map.invalidateSize();
+    setTimeout(() => {
+      __map.invalidateSize();
+      const w = __map.getSize().x || 800;
+      __map.setView([38.7, -96.5], w > 1100 ? 5 : w > 520 ? 4 : 3);
+    }, 90);
+    __map.on('move zoom moveend zoomend resize', drawNationalLive);
+    __map.on('click', natClick);
+    const ok = await loadNational();
+    if (!ok) { setMapMode('fleet'); return; }
     natLegend();
     sbCenter(`NATIONAL SNAPSHOT 2025 | ${fmt(nat.meta.total)} STRUCTURES | ${fmt(nat.meta.poor_total)} POOR`);
-    __map.fitBounds([[24.5, -125], [49.5, -66.5]]);
     drawNational();
-    __map.on('moveend zoomend resize', drawNational);
-    __map.on('click', natClick);
   } else {
-    __map.off('moveend zoomend resize', drawNational);
+    __map.off('move zoom moveend zoomend resize', drawNationalLive);
     __map.off('click', natClick);
     if (nat.canvas) nat.canvas.getContext('2d').clearRect(0, 0, nat.canvas.width, nat.canvas.height);
     Object.values(__markers).forEach(mk => mk.addTo(__map));
@@ -838,8 +894,8 @@ function initWorldMap() {
   if (__worldMap || typeof L === 'undefined' || !state.world) return;
   __worldMap = L.map('worldmap', { scrollWheelZoom: false, worldCopyJump: true });
   __worldMap.setView([28, 15], 2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Esri, HERE, Garmin | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 10,
   }).addTo(__worldMap);
   state.world.cases.forEach(c => {
