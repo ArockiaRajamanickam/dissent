@@ -466,16 +466,16 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
   const cw = (W - 2 * M - 0.66) / 4;
   lims.forEach(([k, t], i) => {
     const x = M + i * (cw + 0.22);
-    card(s, x, 2.4, cw, 3.55, { fill: DESK, t: 20, line: HAIR });
+    card(s, x, 2.4, cw, 3.05, { fill: DESK, t: 20, line: HAIR });
     s.addShape(p.ShapeType.rect, { x, y: 2.4, w: cw, h: 0.06,
       fill: { color: i === 3 ? CRIMSON : OCHRE }, line: { type: 'none' } });
     s.addText(k, { x: x + 0.22, y: 2.66, w: cw - 0.44, h: 0.3, isTextBox: true, margin: 0,
       fontFace: MONO, fontSize: 9.5, bold: true, color: i === 3 ? ROSE : OCHRE, charSpacing: 1.1 });
-    s.addText(t, { x: x + 0.22, y: 3.06, w: cw - 0.44, h: 2.7, isTextBox: true, margin: 0,
+    s.addText(t, { x: x + 0.22, y: 3.06, w: cw - 0.44, h: 2.25, isTextBox: true, margin: 0,
       valign: 'top', fontFace: SERIF, fontSize: 11.8, color: PALE, lineSpacing: 16.5 });
   });
   s.addText('A system that cannot tell you where it stops working is not a second opinion. It is a guess.', {
-    x: M, y: 6.22, w: W - 2 * M, h: 0.4, isTextBox: true, margin: 0, align: 'center',
+    x: M, y: 5.82, w: W - 2 * M, h: 0.4, isTextBox: true, margin: 0, align: 'center',
     fontFace: SERIF, fontSize: 13.5, italic: true, color: CREAM });
   s.addNotes('Do not rush this. It is worth more than another feature. Every one of these four is ' +
     'enforced in the running product — the abstention, the shortfall, the withheld rankings, and ' +

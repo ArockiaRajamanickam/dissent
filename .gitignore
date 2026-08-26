@@ -12,3 +12,7 @@ pitch/*.pdf
 backend/dissent.db
 backend/__pycache__/
 .github/
+pitch/qa/
+pitch/final/
+pitch/shots/
+pitch/*.jpg

@@ -1,7 +1,18 @@
 # DISSENT — how to pitch it
 
 Team Nexus Network · AI Innovation Challenge 2026, Round 3
-Deck: `DISSENT_Nexus_Network_Pitch.pptx` (12 slides) · Live: https://dissent-nexus.netlify.app
+Live: https://dissent-nexus.netlify.app
+
+**There are two decks. Use the right one.**
+
+| File | Slides | Use it when |
+|---|---|---|
+| `DISSENT_Explainer_Nexus_Network.pptx` | 23 | **Default.** Judges read it themselves, or you present with limited time to talk. Every headline is a full sentence that carries the point, every screenshot is captioned, and it answers why bridges, why US data, what the dataset is and why it can be trusted, without narration. |
+| `DISSENT_Nexus_Network_Pitch.pptx` | 12 | A fast, spoken five-minute pitch where you are doing the explaining and the slides are backdrop. |
+
+Both are built from the same shipped artifacts, so their numbers agree. **Present from the PDF**
+where you can — it embeds its fonts, and the .pptx is set in Cambria and Courier New precisely so
+it still renders correctly on a machine you do not control.
 
 ---
 
@@ -11,8 +22,8 @@ Deck: `DISSENT_Nexus_Network_Pitch.pptx` (12 slides) · Live: https://dissent-ne
 > government file. That file goes stale, and people die between inspections.
 >
 > DISSENT keeps two independent accounts of every bridge. One is the official record. The other is a
-> model that predicts what the rating *should* be from physical evidence alone (age, traffic, weather)
-> and is never shown a single inspector's opinion. When the two stop agreeing, the machine files a
+> model that predicts what the rating *should* be from physical evidence alone (age, traffic, weather).
+> It is graded against the inspector's rating, but never allowed to read one. When the two stop agreeing, the machine files a
 > dissent: a ranked case file with a dated inspection obligation.
 >
 > We trained it on real federal data up to 2015 and hid everything after. Of 166 real failures it had
@@ -48,12 +59,14 @@ Surfside (a published study had flagged that exact building subsiding, before it
 **Slide 4 — The idea.** *This is the slide that wins or loses the pitch. Slow down.*
 > **"Infrastructure does not fail silently. It fails contradicted."**
 > **"So we keep two witnesses. The Paper Witness is what the institution believes. The Physics Witness
-> predicts what the rating should be from evidence alone, and it is never shown a single inspector's
-> opinion. The product is not another risk score. The product is the disagreement."**
+> predicts what the rating should be from evidence alone, and no filed rating is ever one of its
+> inputs. The product is not another risk score. The product is the disagreement."**
 
 **Slide 5 — How it works.**
 Walk the six steps in about thirty seconds. Land two things only:
 > **"Trained only up to 2015. Everything after that, the model has never seen."**
+> **"And no inspector's rating is ever one of its inputs. It gets graded against that rating.
+> It never gets to read one."**
 > **"And the docket is capped to what an inspection team can actually do in a quarter — twelve
 > mandatory, twenty-four scheduled, forty-eight watched."**
 
@@ -79,8 +92,9 @@ Walk the six steps in about thirty seconds. Land two things only:
 > failures that kill people are the ones nobody was worried about."**
 
 If a judge looks skeptical, add: *"And we control for it properly — against a blind pick with the
-same rating mix as ours, we run 1.34 times better. The physics witness carries information the
-paperwork doesn't."*
+same rating mix as ours we run 1.34 times better. Say the interval too: 0.99 to 1.73. It includes
+1.0, so on 166 events we cannot rule out that it adds nothing. The segment finding does not depend
+on that number, and that is why we lead with the segment finding."*
 
 **Slide 8 — Scale.**
 > **"That's every rated bridge in the United States, 621,137 of them, drawn live in the browser from a
@@ -132,8 +146,10 @@ Then open the live console.
    small until you see the base rate: we dissent on 6% of structures, so a bridge that fell was 2.4
    times likelier to be one we'd flagged. You picked the state. We didn't."*
 7. **Scroll to the National Dissent Index.** *"Every audit also measures how much sunnier each
-   state's filings run than the evidence — all 51 jurisdictions, 621,735 structures. Georgia's
-   records run about 1.3 of a rating step sunnier than physics; West Virginia's run the other way."*
+   state's filings run than the evidence — all 51 jurisdictions. Georgia's records run +1.30 of a
+   rating step sunnier than physics, and +0.91 once we subtract our own extrapolation, because even
+   inside the rankable band climate distance explains a quarter of what we call optimism. We publish
+   the residual, not the raw number."*
    Then scroll one block further, to the withheld table, and say this deliberately:
    *"And twenty-seven states are in this second table with no ranking at all. Our model was
    calibrated on four cold, wet, Atlantic states. Arizona is five envelope-widths outside that
@@ -202,9 +218,10 @@ If the wifi is bad: the deck's slide 6 chart and slide 8 map are the same story.
 > current process. And the median warning is three and a half years."
 
 **"Why bridges and not buildings?"**
-> "Because bridges are the only asset class on earth with a public, national, thirty-four-year condition
-> record to audit. Buildings don't have one — and Surfside, 98 dead, is what that absence costs. Buildings
-> are exactly where this goes next."
+> "Because their record is public, national, per-structure, numeric and thirty-four years deep, and we
+> know of no other asset class with all five of those at once. You cannot audit a record that does not
+> exist. Surfside, the Florida condo collapse, cost 98 lives and there was no comparable series for
+> anyone to check it against. Buildings are exactly where this goes next."
 
 **"What happened with the Washington Bridge?"** *(if they read Exhibit A)*
 > "We missed it, and we show it. Our model rated it slightly better than the record, not worse, because

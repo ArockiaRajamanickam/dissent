@@ -157,8 +157,8 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
           'ratings run than the physics witness. All 51 jurisdictions, every rated structure in each.',
        M, 2.12, 6.9, { size: 13.5, h: 0.85 });
 
-  const f2 = shot(s, 'index.png', 7.9, 0.86, W - M - 7.9, 3.35, { align: 'left', valign: 'top' });
-  const f = shot(s, 'withheld.png', 7.9, 4.42, W - M - 7.9, 1.55, { align: 'left', valign: 'top' });
+  const f2 = shot(s, 'index_top.png', 7.9, 1.05, W - M - 7.9, 2.5, { align: 'left', valign: 'top' });
+  const f = shot(s, 'withheld.png', 7.9, 3.9, W - M - 7.9, 1.85, { align: 'left', valign: 'top' });
 
   // what we will and will not say
   const bx = M, by = 3.1;
@@ -188,8 +188,11 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
     { x: bx + 0.26, y: by + 2.84, w: 6.38, h: 1.1, isTextBox: true, margin: 0, valign: 'top',
       fontFace: SERIF, fontSize: 11.5, color: 'F0DDE1', lineSpacing: 16 });
 
-  caption(s, 'The index, and the second table listing every jurisdiction whose ranking is withheld and why.',
-          7.9, f.y + f.h + 0.12, W - M - 7.9);
+  caption(s, 'The index, and the second table listing every jurisdiction whose ranking is withheld ' +
+             'and why. The 621,735 in its header is the server’s own per-state audit; the browser ' +
+             'map on the previous slide draws 621,137 from the national snapshot. Two pipelines, ' +
+             '598 structures apart, and we would rather show you both than quietly pick one.',
+          7.9, f.y + f.h + 0.1, W - M - 7.9, { h: 0.95 });
   s.addNotes('This is the slide that buys you credibility for everything else. Say it deliberately: ' +
     'twenty-seven states are in the second table with no ranking at all, and the app tells you the ' +
     'reason for each one.');
