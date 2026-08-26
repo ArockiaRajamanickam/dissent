@@ -282,7 +282,7 @@ svg.chart { width: 100%; height: auto; display: block; background: var(--paper);
 .feature-banner { background: var(--navy); color: #fff; padding: 22px 26px; margin: 14px 0; }
 .feature-banner h3 { color: #fff; font-size: 24px; margin-bottom: 6px; }
 .feature-banner .mono { color: var(--chrome-txt); font-size: 10.5px; }
-.big-lead { font-family: 'Fraunces', serif; font-weight: 900; font-size: 40px; color: var(--crimson-lt); }
+.big-lead { font-family: 'Fraunces', serif; font-weight: 900; font-size: 34px; color: var(--crimson-lt); line-height: 0; position: relative; top: 2px; }
 .note { font-family: 'Courier Prime', monospace; font-size: 10.5px; color: var(--grey); margin-top: 8px; line-height: 1.6; }
 .paper h2 { font-size: 24px; margin: 6px 0 10px; }
 .paper p { max-width: 860px; margin-bottom: 11px; }

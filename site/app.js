@@ -271,17 +271,32 @@ function openDossier(sid) {
   if (!a) return;
   const gap = a.recorded - a.upper;
   let verdict;
+  const dom = Math.max(a.pr_state ?? 0, a.pr_trend ?? 0, a.pr_cond ?? 0);
   if (a.newbuild) {
     verdict = `This structure entered service ${a.built ? 'in <b>' + a.built + '</b>' : 'recently'}, inside the
       five-year window the model's training support cannot calibrate. <b>The physics witness abstains</b>:
       no dissent verdict, no obligation. Listed for completeness.`;
-  } else verdict = gap > 0
-    ? `The record calls this a <b>${a.recorded}</b>. Physics, never shown the record, calls it
-       <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
-       The official record is <b>${gap.toFixed(1)} rating steps more optimistic</b> than the evidence supports.`
-    : `The record (<b>${a.recorded}</b>) sits inside the physics interval
-       (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}, point estimate ${a.pred.toFixed(1)}).
-       ${a.cond > 0.15 ? 'Both witnesses agree this asset is in poor condition; its priority comes from severity and trajectory, not contradiction.' : 'No state dissent on file.'}`;
+  } else if (gap > 0) {
+    verdict = (parseInt(a.sid, 10) || 0) % 2
+      ? `Physics, working blind, puts this structure at <b>${a.pred.toFixed(1)}</b>
+         (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}). The record on file says
+         <b>${a.recorded}</b>: <b>${gap.toFixed(1)} steps sunnier</b> than the evidence.`
+      : `The record calls this a <b>${a.recorded}</b>. Physics, never shown the record, calls it
+         <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
+         The official record is <b>${gap.toFixed(1)} rating steps more optimistic</b> than the evidence supports.`;
+  } else if ((a.pr_trend ?? 0) === dom && dom > 0.05) {
+    verdict = `The recorded <b>${a.recorded}</b> sits inside the physics interval
+       (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}), but the residual against
+       physics has been drifting: the changepoint channel, not the gap, put this structure on the docket.`;
+  } else if (a.cond > 0.15) {
+    verdict = `Record and physics agree, and both read low (recorded <b>${a.recorded}</b>, physics
+       <b>${a.pred.toFixed(1)}</b>). Severity carries the priority here: a structure this far down the
+       scale earns attention regardless of agreement.`;
+  } else {
+    verdict = `The record (<b>${a.recorded}</b>) sits inside the physics interval
+       (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}, point estimate
+       ${a.pred.toFixed(1)}). No state dissent on file.`;
+  }
   const stampText = a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band];
   $('#dossier-body').innerHTML = `
     <button class="close">FILE AWAY (ESC)</button>
@@ -293,7 +308,7 @@ function openDossier(sid) {
         <p class="where">over ${a.crosses || '—'}${a.location ? ', ' + a.location : ''}
         <span class="mono">| ${a.material}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
       </div>
-      <div class="stamp" style="--tilt:${-(2.5 + (parseInt(a.sid, 10) || 7) % 9 * 0.55).toFixed(1)}deg;--ink:${(0.78 + ((parseInt(a.sid, 10) || 3) % 5) * 0.04).toFixed(2)}">${stampText}</div>
+      <div class="stamp" style="--tilt:${(((parseInt(a.sid, 10) || 7) % 2 ? 1 : -1) * (2 + ((parseInt(a.sid, 10) || 7) % 9) * 0.6)).toFixed(1)}deg;--ink:${(0.62 + ((parseInt(a.sid, 10) || 3) % 8) * 0.04).toFixed(2)}">${stampText}</div>
     </div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
     ${trajChart(a.traj, a.cps)}
@@ -425,8 +440,12 @@ function renderWashington() {
         the 2024 federal file finally caught up: <b>rating 1, closed</b>.</p></div>
       <div class="card"><h4>What the model saw (before the event)</h4>
         <ul class="attr">
-        ${years.map(y => `<li>${y}: physics ${dy[y].pred.toFixed(1)} vs record ${dy[y].recorded}
-          <b>${dy[y].state > 0 ? 'state dissent ' + dy[y].state.toFixed(1) : 'in-band, severity-driven'}</b></li>`).join('')}
+          <li>2015-2023: physics held ${Math.min(...years.map(y => dy[y].pred)).toFixed(1)}-${Math.max(...years.map(y => dy[y].pred)).toFixed(1)}
+            against a record frozen at 4<b>every year</b></li>
+          <li>2018: first year inside the top-15% docket budget<b>docketed</b></li>
+          <li>${years.reduce((m, y) => dy[y].pred < dy[m].pred ? y : m, years[0])}: physics minimum,
+            ${Math.min(...years.map(y => dy[y].pred)).toFixed(1)}<b>low point</b></li>
+          <li>State dissent: zero throughout. Severity carried it<b>the I-35W clause</b></li>
         </ul>
         <p class="note">Ninety thousand vehicles a day crossed a structure whose rating never moved for five years.
         The physics-severity channel (the I-35W clause) kept its docket priority high while the record never moved.</p></div>
@@ -472,7 +491,7 @@ function renderMorandi() {
       sbCenter(`BOCPD | t=${t.toFixed(2)} | P(changepoint)=${(window.__morandiLastCp || 0).toFixed(3)}`);
       if (window.__morandiFired && !window.__morandiToasted) {
         window.__morandiToasted = true;
-        toast('DISSENT FILED. The machine puts it on paper — the docket holds 84 live ones.');
+        toast('Filed. 84 on the docket.');
       }
       if (step >= m.series.length) {
         clearInterval(timer); timer = null; play.disabled = false;
@@ -541,8 +560,7 @@ function renderMethod() {
         <circle cx="60" cy="60" r="3" fill="#C6283C"/>
       </svg>
       <h2>How a machine comes to disagree with the record</h2>
-      <p><b>The claim.</b> DISSENT keeps two independent accounts of every asset and files their disagreement. It maintains two
-      independent accounts of every asset: the <b>Paper Witness</b> (the official condition-rating record) and the
+      <p><b>The claim.</b> DISSENT maintains two independent accounts of every asset: the <b>Paper Witness</b> (the official condition-rating record) and the
       <b>Physics Witness</b> (a model that predicts what the rating should be from evidence alone, never having seen
       any inspector's opinion). A calibrated disagreement between them is the product, and every disagreement is
       filed as a dossier with a concrete obligation attached.</p>
