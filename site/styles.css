@@ -537,3 +537,13 @@ table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font
 .doss-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
 .doss-actions .btn { text-decoration: none; display: inline-block; }
 .doss-actions .ctrl-status { color: var(--grey); }
+
+/* ---- what-if simulator ---- */
+.whatif { background: var(--paper); border: 1px solid var(--line); padding: 14px 18px; margin-top: 12px; }
+.wf-row { display: grid; grid-template-columns: 180px 1fr 70px; gap: 14px; align-items: center;
+  padding: 7px 0; border-bottom: 1px dotted #C9C3B2; }
+.wf-row:last-child { border-bottom: none; }
+.wf-row > span { font-size: 10px; color: var(--grey); letter-spacing: 0.6px; }
+.wf-row output { font-size: 12px; color: var(--navy); text-align: right; font-weight: 700; }
+.wf-row input[type=range] { accent-color: var(--crimson); width: 100%; }
+@media (max-width: 680px) { .wf-row { grid-template-columns: 120px 1fr 54px; gap: 8px; } }

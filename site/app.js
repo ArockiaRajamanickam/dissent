@@ -769,10 +769,138 @@ function renderLive() {
       <button class="btn" id="live-run">RUN THE AUDIT</button>
       <span class="ctrl-status" id="live-status">READY</span>
     </div>
-    <div id="live-out"></div>`;
+    <div id="live-out"></div>
+
+    <h2 style="margin-top:30px">The National Dissent Index</h2>
+    <p>Every audit the server runs also measures one thing across <b>all</b> of that state's structures,
+    not just the flagged ones: how much sunnier its filed ratings run than the physics witness. The
+    table below is built out of those real audits, so a jurisdiction appears once it has been scored.
+    Run more states above and it fills in.</p>
+    <div class="ctrlbar">
+      <button class="btn secondary" id="index-refresh">REFRESH THE INDEX</button>
+      <span class="ctrl-status" id="index-status">—</span>
+    </div>
+    <div id="index-out"></div>
+
+    <h2 style="margin-top:30px">Ask the physics witness anything</h2>
+    <p>The model, live. Describe a structure that need not exist and the server will tell you what
+    condition rating the evidence implies, with its calibrated interval.</p>
+    <div class="whatif" id="whatif"></div>
+    <div id="whatif-out"></div>`;
   apiHealth();
   $('#live-run').onclick = runLiveAudit;
+  $('#index-refresh').onclick = renderIndex;
+  renderIndex();
+  renderWhatIf();
 }
+
+async function renderIndex() {
+  const out = $('#index-out'), stat = $('#index-status');
+  if (!out) return;
+  stat.textContent = 'READING THE INDEX…';
+  try {
+    const r = await fetch(API_BASE + '/api/index', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (!d.index.length) {
+      stat.textContent = 'NO JURISDICTIONS SCORED YET';
+      out.innerHTML = '<div class="card"><p>The index is empty. Run an audit above and this state '
+        + 'becomes its first row.</p></div>';
+      return;
+    }
+    stat.textContent = `${d.jurisdictions_scored} OF ${d.of} JURISDICTIONS | ${fmt(d.structures_covered)} STRUCTURES`;
+    const worst = d.index[0], best = d.index[d.index.length - 1];
+    out.innerHTML = `
+      <div class="live-summary">
+        <div><b>${d.jurisdictions_scored}/${d.of}</b><span>JURISDICTIONS SCORED</span></div>
+        <div><b>${fmt(d.structures_covered)}</b><span>STRUCTURES IN THE INDEX</span></div>
+        <div><b>${d.national_mean_optimism > 0 ? '+' : ''}${(d.national_mean_optimism || 0).toFixed(2)}</b><span>MEAN RECORD OPTIMISM</span></div>
+        <div><b>${esc(worst.state)}</b><span>SUNNIEST RECORDS OF THOSE SCORED</span></div>
+      </div>
+      <div class="tablewrap" style="max-height:none;margin-top:12px">
+      <table class="docket"><thead><tr>
+        <th>#</th><th>Jurisdiction</th><th>Structures</th><th>Record avg</th><th>Physics avg</th>
+        <th>Optimism</th><th>Share sunnier</th><th>Rated poor</th></tr></thead><tbody>
+      ${d.index.map((x, i) => `<tr>
+        <td class="mono">${i + 1}</td>
+        <td><b>${esc(x.state)}</b></td>
+        <td class="mono">${fmt(x.structures)}</td>
+        <td class="mono">${x.mean_recorded.toFixed(2)}</td>
+        <td class="mono">${x.mean_physics.toFixed(2)}</td>
+        <td class="mono" style="color:${x.mean_optimism > 0 ? '#B23348' : '#0E8A78'}">
+          ${x.mean_optimism > 0 ? '+' : ''}${x.mean_optimism.toFixed(2)}</td>
+        <td class="mono">${Math.round(x.pct_optimistic * 100)}%</td>
+        <td class="mono">${Math.round(x.poor_share * 100)}%</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="note">${esc(d.caveat)}</p>`;
+  } catch (e) {
+    stat.textContent = 'THE API DID NOT ANSWER';
+    out.innerHTML = '<div class="card"><p>The index needs the server. Free instances sleep; '
+      + 'press REFRESH THE INDEX again in a moment.</p></div>';
+  }
+}
+
+const WHATIF = [
+  ['built', 'YEAR BUILT', 1900, 2025, 1962, 1],
+  ['adt', 'VEHICLES PER DAY', 0, 120000, 18000, 500],
+  ['truck', 'TRUCK SHARE %', 0, 40, 9, 1],
+  ['len', 'LENGTH (M)', 3, 400, 60, 1],
+];
+function renderWhatIf() {
+  const w = $('#whatif');
+  if (!w) return;
+  w.innerHTML = WHATIF.map(([k, lab, lo, hi, val, step]) => `
+    <label class="wf-row"><span class="mono">${lab}</span>
+      <input type="range" id="wf-${k}" min="${lo}" max="${hi}" step="${step}" value="${val}">
+      <output class="mono" id="wfv-${k}">${val}</output></label>`).join('') +
+    `<label class="wf-row"><span class="mono">MATERIAL</span>
+       <select id="wf-mat" class="live-select mono">
+         <option value="3">Steel</option><option value="1">Concrete</option>
+         <option value="5">Prestressed concrete</option><option value="7">Wood</option>
+       </select><output></output></label>
+     <label class="wf-row"><span class="mono">THE RECORD SAYS</span>
+       <input type="range" id="wf-rec" min="0" max="9" step="1" value="7">
+       <output class="mono" id="wfv-rec">7</output></label>`;
+  const go = () => {
+    WHATIF.forEach(([k]) => { $('#wfv-' + k).textContent = $('#wf-' + k).value; });
+    $('#wfv-rec').textContent = $('#wf-rec').value;
+    clearTimeout(renderWhatIf.__t);
+    renderWhatIf.__t = setTimeout(askWhatIf, 260);
+  };
+  w.querySelectorAll('input,select').forEach(el => el.oninput = go);
+  askWhatIf();
+}
+async function askWhatIf() {
+  const out = $('#whatif-out');
+  if (!out) return;
+  const body = {
+    year_built: +$('#wf-built').value, adt: +$('#wf-adt').value,
+    truck_pct: +$('#wf-truck').value, length_m: +$('#wf-len').value,
+    lanes: 2, material: +$('#wf-mat').value, state: state.jur,
+    recorded_rating: +$('#wf-rec').value };
+  try {
+    const r = await fetch(API_BASE + '/api/score', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json(), v = d.verdict;
+    out.innerHTML = `
+      <div class="rduel rduel-lg" style="margin-top:14px">
+        ${rbadge('THE RECORD SAYS', body.recorded_rating)}<em>vs</em>
+        ${rbadge('PHYSICS SAYS', v.physics, '[' + v.lower.toFixed(1) + '-' + v.upper.toFixed(1) + ']')}
+      </div>
+      <div class="verdict"><span class="mono">LIVE FROM THE MODEL</span>
+        <p>${v.state_dissent > 0
+          ? `A dissent of <b>${v.state_dissent.toFixed(2)}</b>: ${esc(v.reading)}.`
+          : `No dissent: ${esc(v.reading)}.`}</p></div>
+      <p class="note">Computed by the API on request, not in your browser. Weather comes from the
+      live Open-Meteo archive for ${esc(state.summary.state_names[state.jur] || state.jur)}.</p>`;
+  } catch (e) {
+    out.innerHTML = '<p class="note">The model is asleep. Move a slider again in a moment.</p>';
+  }
+}
+
+
 
 async function runLiveAudit() {
   const st = $('#live-state').value;
