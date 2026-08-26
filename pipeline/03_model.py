@@ -263,7 +263,14 @@ state_n = normalize([d['state'] for _, d, _ in docket])
 trend_n = normalize([min(d['trend'], 2.0) for _, d, _ in docket])
 cond_n = np.array([d['cond'] for _, d, _ in docket])
 fused = np.array([priority_of(d) for _, d, _ in docket])
-order = np.argsort(-fused)
+# The physics witness abstains on structures younger than five years: their
+# age features sit outside the training support, so they rank last with no
+# band and carry an explicit abstention flag instead of a verdict.
+newbuild = np.array([
+    (not pd.isna(last['built'])) and (latest_year - last['built'] <= 5)
+    for _, _, last in docket])
+fused_rank = np.where(newbuild, -1.0, fused)
+order = np.argsort(-fused_rank)
 
 def clean(s):
     return str(s).strip().strip("'").strip()
@@ -286,7 +293,8 @@ assets_out = []
 for rank_pos, idx in enumerate(order):
     sid, d, last = docket[idx]
     g = groups[sid]
-    band = ('inspect' if rank_pos < INSPECT_NOW else
+    band = ('clear' if newbuild[idx] else
+            'inspect' if rank_pos < INSPECT_NOW else
             'schedule' if rank_pos < INSPECT_NOW + SCHEDULE else
             'watch' if rank_pos < INSPECT_NOW + SCHEDULE + WATCH else 'clear')
     traj = [[int(r.year), None if math.isnan(r.rating) else int(r.rating),
@@ -313,6 +321,7 @@ for rank_pos, idx in enumerate(order):
         pr_cond=round(0.30 * d['cond'], 3),
         trend=round(float(trend_n[idx]), 3),
         fused=round(float(fused[idx]), 3), cp=round(d['cp'], 3),
+        newbuild=bool(newbuild[idx]),
         traj=traj, cps=[round(c, 3) for c in cps], attr=attr))
 
 # ---------------------------------------------------------------- exports
@@ -344,6 +353,7 @@ json.dump(dict(
     n_poor=int((df[df.year == latest_year]['rating'] <= 4).sum()),
     train_end=TRAIN_END, calib='2016-2018', q90=round(Q90, 2),
     mae_test=round(mae_te, 2), coverage=round(cov_te, 3),
+    n_newbuild=int(newbuild.sum()),
     n_events_total=int(len(events)), n_events_test=len(ev_rows),
     event_recall=round(recall, 3),
     median_lead=float(np.median(leads)) if leads else 0,

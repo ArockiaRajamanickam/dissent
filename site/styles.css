@@ -112,6 +112,9 @@ main { flex: 1; min-height: 0; position: relative; }
 }
 #docket-tools { flex: none; }
 .tablewrap { flex: 1; min-height: 0; overflow: auto; position: relative; }
+.docket-paper::after { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 26px;
+  background: linear-gradient(to left, rgba(32,38,62,0.10), transparent); pointer-events: none; }
+.docket-paper { position: relative; }
 
 /* paper views: documents on the desk */
 .view-paper.active { display: block; overflow-y: auto; }

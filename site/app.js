@@ -206,13 +206,13 @@ function renderDocketTools() {
   let deb = null;
   sr.oninput = () => {
     clearTimeout(deb);
-    deb = setTimeout(() => { state.query = sr.value; renderDocketTable(); }, 120);
+    deb = setTimeout(() => { state.query = sr.value; renderDocketTable(); applyMarkerFilter(); }, 120);
   };
 }
 function renderDocketTable() {
   const list = filteredList();
   const arrow = k => state.sortKey === k ? (state.sortAsc ? ' &#9650;' : ' &#9660;') : '';
-  $('#result-count').textContent = `${list.length} STRUCTURES`;
+  $('#result-count').textContent = `${list.length} STRUCTURE${list.length === 1 ? '' : 'S'}`;
   $('#docket-list').innerHTML = `
     <table class="docket">
       <thead><tr>
@@ -226,10 +226,10 @@ function renderDocketTable() {
       <th class="sortable" data-key="cond">Cond.${arrow('cond')}</th>
       <th class="sortable" data-key="fused">Priority${arrow('fused')}</th></tr></thead>
       <tbody>
-      ${list.slice(0, 400).map(a => `
-        <tr class="row" data-sid="${a.sid}" tabindex="0">
+      ${list.map(a => `
+        <tr class="row" data-sid="${a.sid}" tabindex="0" role="button" aria-label="Open dossier for ${a.carries || a.sid}">
           <td class="mono">${a.rank}</td>
-          <td><span class="band ${a.band}">${BAND_LABEL[a.band]}</span></td>
+          <td><span class="band ${a.band}">${a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band]}</span></td>
           <td><b>${a.carries || 'Unnamed'}</b> <span class="open-hint">OPEN DOSSIER &#8594;</span><br>
               <span class="dim" style="font-size:11.5px">over ${a.crosses || '—'}</span></td>
           <td class="mono sid">${a.sid}</td>
@@ -268,13 +268,19 @@ function openDossier(sid) {
   const a = state.assets.find(x => x.sid === sid);
   if (!a) return;
   const gap = a.recorded - a.upper;
-  const verdict = gap > 0
+  let verdict;
+  if (a.newbuild) {
+    verdict = `Structure is <b>${(state.summary.latest_year - (a.built || state.summary.latest_year))} years old or newer than the model's
+      training support allows. <b>The physics witness abstains</b>: structures younger than five years carry
+      no dissent verdict and no obligation. Listed for completeness.`;
+  } else verdict = gap > 0
     ? `The record calls this a <b>${a.recorded}</b>. Physics, never shown the record, calls it
        <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
        The official record is <b>${gap.toFixed(1)} rating steps more optimistic</b> than the evidence supports.`
     : `The record (<b>${a.recorded}</b>) sits inside the physics interval
        (${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}, point estimate ${a.pred.toFixed(1)}).
        ${a.cond > 0.15 ? 'Both witnesses agree this asset is in poor condition; its priority comes from severity and trajectory, not contradiction.' : 'No state dissent on file.'}`;
+  const stampText = a.newbuild ? 'ABSTAINED' : BAND_LABEL[a.band];
   $('#dossier-body').innerHTML = `
     <button class="close">ESC / CLOSE</button>
     <div class="doc-head">
@@ -285,7 +291,7 @@ function openDossier(sid) {
         <p class="where">over ${a.crosses || '—'}${a.location ? ', ' + a.location : ''}
         <span class="mono">| ${a.material}, built ${a.built || '?'}, ADT ${fmt(a.adt)}</span></p>
       </div>
-      <div class="stamp">${BAND_LABEL[a.band]}</div>
+      <div class="stamp">${stampText}</div>
     </div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
     ${trajChart(a.traj, a.cps)}
@@ -307,8 +313,8 @@ function openDossier(sid) {
         <p class="note">Each channel is capped and scaled to [0,1] before weighting; the three terms add up to the priority.</p>
       </div>
     </div>
-    <div class="obligation"><span class="mono">OBLIGATION CREATED | BAND: ${BAND_LABEL[a.band]}</span>
-      <p>${OBLIGATION[a.band]}</p>
+    <div class="obligation"><span class="mono">${a.newbuild ? 'NO OBLIGATION | PHYSICS WITNESS ABSTAINS ON NEW BUILDS' : 'OBLIGATION CREATED | BAND: ' + BAND_LABEL[a.band]}</span>
+      <p>${a.newbuild ? 'Structures five years old or newer sit outside the training support of the age and exposure features; DISSENT does not issue verdicts it cannot calibrate.' : OBLIGATION[a.band]}</p>
       <div class="route">GENERATED AUTOMATICALLY | OBLIGATION ROUTES TO THE DISTRICT ENGINEER | VERIFICATION OUTCOME RETURNS AS A TRAINING LABEL</div>
     </div>`;
   $('#dossier-overlay').classList.remove('hidden');
@@ -384,8 +390,10 @@ function highlightMarker(sid, on) {
 }
 function applyMarkerFilter() {
   const f = state.bandFilter;
-  Object.values(__markers).forEach(mk => {
-    const match = f === 'all' || (f === 'priority' ? mk.__band !== 'clear' : mk.__band === f);
+  const visible = state.query ? new Set(filteredList().map(a => a.sid)) : null;
+  Object.entries(__markers).forEach(([sid, mk]) => {
+    let match = f === 'all' || (f === 'priority' ? mk.__band !== 'clear' : mk.__band === f);
+    if (match && visible) match = visible.has(sid);
     mk.setStyle({ fillOpacity: match ? mk.__base.fillOpacity : 0.06,
                   weight: match ? mk.__base.weight : 0 });
   });
@@ -564,8 +572,10 @@ function renderMethod() {
         distribution shift, and we report it rather than retune on the test years. Several missed events are
         administrative closures (bypassed or replaced structures) that condition physics cannot see. The satellite
         displacement channel of the full design is not in this pilot (Rhode Island lacks free processed InSAR;
-        the Morandi replay demonstrates that channel's detector on the published record instead). Ratings are coarse,
-        inspector-subjective labels, which is the entire reason a second opinion is worth building.</p></div>
+        the Morandi replay demonstrates that channel's detector on the published record instead). Structures five years old or newer (${s.n_newbuild || 0} of them) receive
+        no verdict at all: their age features sit outside the training support, so the physics witness abstains
+        rather than guess. Ratings are coarse, inspector-subjective labels, which is the entire reason a second
+        opinion is worth building.</p></div>
       <div class="pill-row">
         <span class="pill">FHWA NBI 1992-2025 (REAL, PUBLIC)</span>
         <span class="pill">OPEN-METEO / ERA5 (REAL)</span>
