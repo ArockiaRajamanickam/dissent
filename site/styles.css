@@ -519,3 +519,21 @@ table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font
 .leaflet-popup-tip { background: var(--cream); }
 
 .jurchip[disabled] { opacity: 0.45; cursor: default; }
+
+/* ---- live audit / API ---- */
+.api-status { margin: 12px 0 6px; font-size: 10.5px; }
+.api-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: #9AA0B4; margin-right: 8px; vertical-align: 0; }
+.api-dot.live { background: #35B47A; animation: breathe 2.4s ease-in-out infinite; }
+.live-select { background: var(--paper); color: var(--ink); border: 1px solid var(--hairline);
+  font-size: 11px; padding: 8px 10px; min-width: 210px; }
+.live-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px; margin-top: 14px; }
+.live-summary div { background: var(--paper); border: 1px solid var(--line); padding: 10px 12px; }
+.live-summary b { display: block; font-family: 'Fraunces', serif; font-weight: 900;
+  font-size: 21px; color: var(--navy); }
+.live-summary span { font-family: 'Courier Prime', monospace; font-size: 8.5px;
+  color: var(--grey); letter-spacing: 0.5px; }
+.doss-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.doss-actions .btn { text-decoration: none; display: inline-block; }
+.doss-actions .ctrl-status { color: var(--grey); }

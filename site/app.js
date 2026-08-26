@@ -2,6 +2,7 @@
 'use strict';
 
 const REPO_URL = 'https://github.com/ArockiaRajamanickam/dissent';
+const API_BASE = 'https://dissent-api.onrender.com';
 const state = { assets: [], summary: null, events: null, morandi: null,
                 world: null, exhibit: null, jur: 'RI', eventsRI: null,
                 bandFilter: 'priority', query: '', sortKey: 'rank', sortAsc: true };
@@ -357,6 +358,12 @@ function openDossier(sid) {
         <p class="note">Each channel is capped and scaled to [0,1] before weighting; the three terms add up to the priority.</p>
       </div>
     </div>
+    <div class="doss-actions">
+      <a class="btn secondary" id="doss-pdf" target="_blank" rel="noopener"
+         href="${API_BASE}/api/dossier/${encodeURIComponent(state.jur)}/${encodeURIComponent(a.sid)}.pdf?recorded=${a.recorded}&physics=${a.pred}&carries=${encodeURIComponent(a.carries || '')}&crosses=${encodeURIComponent(a.crosses || '')}">CASE FILE AS PDF</a>
+      <button class="btn" id="doss-verify">FILE AN INSPECTION OUTCOME</button>
+      <span class="ctrl-status" id="doss-verify-status"></span>
+    </div>
     <div class="obligation"><span class="mono">${a.newbuild ? 'NO OBLIGATION | PHYSICS WITNESS ABSTAINS ON NEW BUILDS' : 'OBLIGATION CREATED | BAND: ' + BAND_LABEL[a.band]}</span>
       <p>${a.newbuild ? 'Structures five years old or newer sit outside the training support of the age and exposure features; DISSENT does not issue verdicts it cannot calibrate.' : OBLIGATION[a.band]}</p>
       <div class="route">GENERATED AUTOMATICALLY | OBLIGATION ROUTES TO THE DISTRICT ENGINEER | VERIFICATION OUTCOME RETURNS AS A TRAINING LABEL</div>
@@ -366,6 +373,30 @@ function openDossier(sid) {
   $('#dossier-overlay').toggleAttribute('inert', false);
   document.body.style.overflow = 'hidden';
   $('#dossier-body .close').onclick = closeDossier;
+  const vb = $('#doss-verify');
+  if (vb) vb.onclick = async () => {
+    const s = $('#doss-verify-status');
+    const found = prompt('What did the inspection find? Enter the condition rating 0-9, ' +
+                         'or leave blank if inconclusive.');
+    if (found === null) return;
+    const fr = found.trim() === '' ? null : parseInt(found, 10);
+    if (fr !== null && (isNaN(fr) || fr < 0 || fr > 9)) { s.textContent = 'RATING MUST BE 0-9'; return; }
+    const outcome = fr === null ? 'inconclusive' : (fr < a.recorded ? 'confirmed' : 'not_confirmed');
+    vb.disabled = true; s.innerHTML = '<span class="live">●</span> FILING…';
+    try {
+      const r = await fetch(API_BASE + '/api/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: state.jur, sid: a.sid, outcome: outcome,
+          recorded: a.recorded, physics: a.pred, found_rating: fr,
+          inspector: 'console', note: 'Filed from the DISSENT console.' }) });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      s.textContent = `FILED AS ${outcome.toUpperCase().replace('_', ' ')} | ${d.total_filed} OUTCOMES ON RECORD`;
+      toast(`Outcome filed. ${d.total_filed} on record; it becomes a label for the next build.`);
+    } catch (e) {
+      s.textContent = 'THE API DID NOT ANSWER (FREE TIER SLEEPS; TRY AGAIN)';
+    } finally { vb.disabled = false; }
+  };
   $('#dossier-body .close').focus();
   if (a.lat && document.getElementById('doss-sat')) {
     openDossier.__t = setTimeout(() => {
@@ -685,6 +716,113 @@ function drawMorandi(upto) {
           <text x="${X(p[0]) + 10}" y="${Y(p[1]) - 10}" font-size="12" fill="#C6283C" font-family="Courier Prime" font-weight="500">DISSENT FILED (${p[0].toFixed(2)})</text>`;
   }
   $('#morandi-chart').innerHTML = s + '</svg>';
+}
+
+/* ============ live audit: the API half ============ */
+const US_STATES = {AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',
+ CO:'Colorado',CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',
+ ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',
+ ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',
+ MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',
+ NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
+ OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
+ TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',
+ WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',DC:'District of Columbia'};
+
+async function apiHealth() {
+  const el = $('#api-status');
+  if (!el) return null;
+  el.innerHTML = '<span class="mono dim">CONTACTING THE API…</span>';
+  try {
+    const r = await fetch(API_BASE + '/api/health', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    const h = await r.json();
+    el.innerHTML =
+      `<span class="api-dot live"></span><span class="mono">API LIVE | MODEL FROZEN ${h.train_end} | ` +
+      `${fmt(h.trained_rows)} TRAINING ROWS | CONFORMAL ±${h.conformal_q90} | ` +
+      `${h.jurisdictions_available} JURISDICTIONS | ${fmt(h.audits_run)} AUDITS RUN | ` +
+      `${fmt(h.verifications_filed)} OUTCOMES FILED</span>`;
+    return h;
+  } catch (e) {
+    el.innerHTML = '<span class="api-dot"></span><span class="mono dim">API ASLEEP. ' +
+      'FREE-TIER SERVICES COLD-START: PRESS RUN AND ALLOW ABOUT A MINUTE.</span>';
+    return null;
+  }
+}
+
+function renderLive() {
+  const v = $('#paper-live');
+  if (!v) return;
+  const opts = Object.entries(US_STATES).map(([k, n]) =>
+    `<option value="${k}"${k === 'MT' ? ' selected' : ''}>${k} — ${n}</option>`).join('');
+  v.innerHTML = `
+    <h2>Audit any state in the union, on demand.</h2>
+    <p>The four-state fleet in the docket is pre-computed. This is not. Choose any of the 51 US
+    jurisdictions and the DISSENT API will pull that state's <b>live federal file</b>, fetch its
+    <b>live weather history</b>, run the physics witness over every structure in it, and return the
+    dissent docket. Nothing here is cached in advance.</p>
+    <p class="note">This endpoint cannot run in a browser: the federal file is tens of megabytes and
+    its origin sends no cross-origin headers. It is the half of the system that needs a server.</p>
+    <div id="api-status" class="api-status"></div>
+    <div class="ctrlbar">
+      <select id="live-state" class="live-select mono">${opts}</select>
+      <button class="btn" id="live-run">RUN THE AUDIT</button>
+      <span class="ctrl-status" id="live-status">READY</span>
+    </div>
+    <div id="live-out"></div>`;
+  apiHealth();
+  $('#live-run').onclick = runLiveAudit;
+}
+
+async function runLiveAudit() {
+  const st = $('#live-state').value;
+  const btn = $('#live-run'), stat = $('#live-status'), out = $('#live-out');
+  btn.disabled = true;
+  stat.innerHTML = `<span class="live">●</span> PULLING THE ${st} FEDERAL FILE AND SCORING IT…`;
+  out.innerHTML = '<div class="bootload mono">THE SERVER IS READING THE RECORD…' +
+    '<div class="skel-row"></div><div class="skel-row"></div><div class="skel-row"></div></div>';
+  const t0 = performance.now();
+  try {
+    const r = await fetch(`${API_BASE}/api/audit/${st}?limit=25`);
+    if (!r.ok) throw new Error('API returned ' + r.status);
+    const d = await r.json();
+    const wall = ((performance.now() - t0) / 1000).toFixed(1);
+    stat.textContent = `DONE IN ${wall}s`;
+    out.innerHTML = `
+      <div class="live-summary">
+        <div><b>${fmt(d.structures_scored)}</b><span>STRUCTURES SCORED LIVE</span></div>
+        <div><b>${fmt(d.flagged)}</b><span>CARRY A DISSENT OR SEVERITY</span></div>
+        <div><b>${d.seconds}s</b><span>SERVER COMPUTE</span></div>
+        <div><b>${d.nbi_year}</b><span>FEDERAL FILE YEAR</span></div>
+      </div>
+      <div class="tablewrap" style="max-height:none;margin-top:12px">
+      <table class="docket"><thead><tr>
+        <th>#</th><th>Structure</th><th>ID</th><th>Built</th><th>ADT</th>
+        <th>Record</th><th>Physics</th><th>Dissent</th><th>Priority</th></tr></thead><tbody>
+      ${d.docket.map((x, i) => `<tr>
+        <td class="mono">${i + 1}</td>
+        <td><b>${esc(x.carries || 'Unnamed')}</b><br><span class="dim" style="font-size:11.5px">over ${esc(x.crosses || '—')}</span></td>
+        <td class="mono sid">${esc(x.sid)}</td>
+        <td class="mono">${x.built || '—'}</td>
+        <td class="mono">${fmt(x.adt)}</td>
+        <td><span class="rchip rc-${rcls(x.recorded)}">${x.recorded}</span></td>
+        <td><span class="rchip rc-${rcls(x.physics)}">${x.physics.toFixed(1)}</span>
+            <span class="dim mono" style="font-size:10.5px">[${x.lower.toFixed(1)}-${x.upper.toFixed(1)}]</span></td>
+        <td class="mono">${x.state_dissent > 0 ? x.state_dissent.toFixed(2) : '—'}</td>
+        <td class="prio">${x.priority.toFixed(3)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="note">${esc(d.note)} Ranked by priority; showing ${d.docket.length} of ${fmt(d.flagged)}.
+      Served by the DISSENT API, model frozen at ${state.summary.train_end}.</p>`;
+    apiHealth();
+  } catch (e) {
+    stat.textContent = 'THE API DID NOT ANSWER';
+    out.innerHTML = `<div class="card"><h4>The server did not answer</h4>
+      <p>Free-tier services sleep after inactivity and take up to a minute to wake. Press
+      RUN THE AUDIT again. The pre-computed four-state docket needs no server and is unaffected.</p>
+      <p class="note">${esc(String(e))}</p></div>`;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* ============ method ============ */
@@ -1152,6 +1290,7 @@ async function boot() {
   renderDocketTable();
   renderWashington();
   renderMorandi();
+  renderLive();
   renderMethod();
   renderWorld();
   route();
