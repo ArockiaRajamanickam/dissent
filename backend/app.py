@@ -47,6 +47,10 @@ def db():
         filed_at TEXT NOT NULL, state TEXT NOT NULL, sid TEXT NOT NULL,
         recorded INTEGER, physics REAL, outcome TEXT NOT NULL,
         found_rating INTEGER, inspector TEXT, note TEXT)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS state_index (
+        state TEXT PRIMARY KEY, structures INTEGER, flagged INTEGER,
+        mean_optimism REAL, pct_optimistic REAL, mean_recorded REAL,
+        mean_physics REAL, poor_share REAL, computed_at TEXT, seconds REAL)""")
     c.execute("""CREATE TABLE IF NOT EXISTS audit_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, state TEXT,
         structures INTEGER, dissents INTEGER, seconds REAL)""")
@@ -238,6 +242,13 @@ def audit(state: str, limit: int = Query(25, ge=1, le=200)):
     rows = df.to_dict('records')
     X = np.array([featurise(r, wx) for r in rows], dtype=float)
     preds = MODEL.predict(X)
+    rec_arr = df['__rating'].to_numpy(dtype=float)
+    gap = rec_arr - preds                       # + means the file is sunnier than physics
+    stats = dict(mean_optimism=float(np.mean(gap)),
+                 pct_optimistic=float(np.mean(gap > 0)),
+                 mean_recorded=float(np.mean(rec_arr)),
+                 mean_physics=float(np.mean(preds)),
+                 poor_share=float(np.mean(rec_arr <= 4)))
     out = []
     for r, rec, pr in zip(rows, df['__rating'].tolist(), preds):
         v = verdict(float(pr), int(rec))
@@ -253,15 +264,52 @@ def audit(state: str, limit: int = Query(25, ge=1, le=200)):
     out.sort(key=lambda d: -d['priority'])
     secs = round(time.time() - t0, 2)
     c = db()
+    now = datetime.now(timezone.utc).isoformat(timespec='seconds')
     c.execute('INSERT INTO audit_log (at, state, structures, dissents, seconds) VALUES (?,?,?,?,?)',
-              (datetime.now(timezone.utc).isoformat(timespec='seconds'), st, len(df), len(out), secs))
+              (now, st, len(df), len(out), secs))
+    c.execute("""INSERT INTO state_index (state, structures, flagged, mean_optimism,
+                 pct_optimistic, mean_recorded, mean_physics, poor_share, computed_at, seconds)
+                 VALUES (?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(state) DO UPDATE SET structures=excluded.structures,
+                 flagged=excluded.flagged, mean_optimism=excluded.mean_optimism,
+                 pct_optimistic=excluded.pct_optimistic, mean_recorded=excluded.mean_recorded,
+                 mean_physics=excluded.mean_physics, poor_share=excluded.poor_share,
+                 computed_at=excluded.computed_at, seconds=excluded.seconds""",
+              (st, len(df), len(out), round(stats['mean_optimism'], 4),
+               round(stats['pct_optimistic'], 4), round(stats['mean_recorded'], 3),
+               round(stats['mean_physics'], 3), round(stats['poor_share'], 4), now, secs))
     c.commit(); c.close()
     return dict(state=st, nbi_year=NBI_YEAR, structures_scored=int(len(df)),
-                flagged=len(out), seconds=secs,
+                flagged=len(out), seconds=secs, index=stats,
                 note=('Single-snapshot audit: state dissent and physics severity only. '
                       'The trend channel needs the full trajectory, which the four-state '
                       'fleet build provides.'),
                 docket=out[:limit])
+
+@app.get('/api/index')
+def national_index():
+    """The National Dissent Index: for every jurisdiction audited so far, how much
+    sunnier its filed ratings run than the physics witness. Built from real audits,
+    not precomputed: each state's row appears once that state has been scored."""
+    c = db()
+    rows = c.execute("""SELECT state, structures, flagged, mean_optimism, pct_optimistic,
+                         mean_recorded, mean_physics, poor_share, computed_at
+                         FROM state_index ORDER BY mean_optimism DESC""").fetchall()
+    c.close()
+    keys = ['state', 'structures', 'flagged', 'mean_optimism', 'pct_optimistic',
+            'mean_recorded', 'mean_physics', 'poor_share', 'computed_at']
+    idx = [dict(zip(keys, r)) for r in rows]
+    total = sum(r['structures'] for r in idx)
+    return dict(
+        jurisdictions_scored=len(idx), of=len(STATE_CENTROID),
+        structures_covered=total,
+        national_mean_optimism=round(
+            sum(r['mean_optimism'] * r['structures'] for r in idx) / total, 4) if total else None,
+        caveat=('Optimism is the mean of recorded minus physics across every rated structure in '
+                'the jurisdiction. A positive value means the filed ratings run sunnier than the '
+                'evidence model. It is a comparison of records against one model, not proof of bad '
+                'practice: regional construction, climate and inspection culture all load onto it.'),
+        index=idx)
 
 @app.post('/api/verify')
 def verify(req: VerifyRequest):
