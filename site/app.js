@@ -147,7 +147,7 @@ function renderChrome() {
     `OFF BY <b>${s.mae_test}</b> STEPS, UNSEEN YEARS<span class="sep">|</span>` +
     `COVERAGE <b>${Math.round(s.coverage * 100)}%</b><span class="sep">|</span>` +
     `<span class="hot">CAUGHT <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x CHANCE)</span><span class="sep">|</span>` +
-    `<span class="hot">WASHINGTON LEAD <b>5 YRS</b></span>`;
+    `<span class="hot">WASHINGTON <b>+5 YRS</b></span>`;
   const nI = state.assets.filter(x => x.band === 'inspect').length;
   const nS = state.assets.filter(x => x.band === 'schedule').length;
   const nW = state.assets.filter(x => x.band === 'watch').length;
