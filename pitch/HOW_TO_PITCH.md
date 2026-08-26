@@ -3,16 +3,32 @@
 Team Nexus Network · AI Innovation Challenge 2026, Round 3
 Live: https://dissent-nexus.netlify.app
 
-**There are two decks. Use the right one.**
+**Three files. Use the right one.**
 
 | File | Slides | Use it when |
 |---|---|---|
-| `DISSENT_Explainer_Nexus_Network.pptx` | 23 | **Default.** Judges read it themselves, or you present with limited time to talk. Every headline is a full sentence that carries the point, every screenshot is captioned, and it answers why bridges, why US data, what the dataset is and why it can be trusted, without narration. |
-| `DISSENT_Nexus_Network_Pitch.pptx` | 12 | A fast, spoken five-minute pitch where you are doing the explaining and the slides are backdrop. |
+| `DISSENT_Nexus_Network.pptx` | 14 | **This is the one to present.** Flat solid colours, huge type, one idea per slide, and the demo screenshots run big. Built for a 5-minute pitch where you talk and the slides hit. |
+| `DISSENT_Explainer_Nexus_Network.pptx` | 23 | The long read. Hand this over if judges want to go through it themselves afterwards — it carries the full provenance, the controls and the caveats in writing. |
+| `DISSENT_Nexus_Network_Pitch.pptx` | 12 | The earlier version. Superseded by the 14-slide deck; keep it only as a backup. |
 
-Both are built from the same shipped artifacts, so their numbers agree. **Present from the PDF**
-where you can — it embeds its fonts, and the .pptx is set in Cambria and Courier New precisely so
-it still renders correctly on a machine you do not control.
+All three are built from the same shipped artifacts, so their numbers agree. Present from the
+**PDF** where you can. The 14-slide deck is set in Arial Black, Arial and Courier New — three
+faces that ship with Office on both Windows and Mac — so it renders correctly on a machine you
+do not control.
+
+### Timing the 14 slides in five minutes
+
+| Slides | Beat | Seconds |
+|---|---|---|
+| 1–2 | Cover, then the 730-day gap | 40 |
+| 3–4 | Why bridges, why America, then the two-witness idea | 60 |
+| 5–6 | The docket, then 621,137 | 45 |
+| 7–8 | How it works, and the frozen-model test | 50 |
+| 9–11 | The objection, then **108**, then 0 vs 25 | 80 |
+| 12 | Time Machine — hand it to a judge | 45 |
+| 13–14 | Limits, close | 30 |
+
+Slides 9, 10 and 11 are the spine. If you are running short, cut 7 and 13 before you cut those.
 
 ---
 
@@ -37,93 +53,81 @@ If they only ask one question, that is the answer to all of them.
 
 ## 2. The five-minute pitch, slide by slide
 
-Say the **bold line** out loud. The rest is what to add if you have room.
+This maps to `DISSENT_Nexus_Network.pptx`, the 14-slide deck. Say the **bold line** out loud.
+The rest is what you add if you have room.
 
-**Slide 1 — Title.**
-> **"Every dot on this map is a real bridge in the US federal record. Forty-one thousand of them are
-> rated poor. Tonight I'll show you the ones whose paperwork is lying."**
-Do not explain the team yet. Let the map do the work for three seconds.
+**1 — DISSENT.** *Let it sit for three seconds before you speak.*
+> **"Every bridge in America gets looked at about once every two years. In between, the only thing
+> anyone consults is a file. Tonight I'm going to show you the bridges whose file is lying."**
 
-**Slide 2 — The problem.**
-> **"A bridge doesn't fail the day it becomes unsafe. It fails the day the paperwork and the physical
-> bridge stop agreeing, and nobody is looking at both."**
-Then the three numbers: 24 months between inspections, a 0–9 human scale as the entire official record,
-and under 20% of even long-span bridges carry any sensors. Hardware does not scale. The record does.
+**2 — 730 days.**
+> **"That's the average gap between one look at a bridge and the next. In between, the file is
+> standing still. The bridge is not."**
 
-**Slide 3 — The pattern.**
-> **"We went through the forensic record of eight collapses on three continents. In every single one,
-> the evidence existed, in time, and belonged to nobody."**
-Pick two, not six: Morandi (satellite radar showed the deck accelerating for seventeen months) and
-Surfside (a published study had flagged that exact building subsiding, before it fell). Then stop.
+**3 — Why bridges? Why America?** *Answer both before they ask. No defensiveness.*
+> **"Bridges, because it's the one asset class with a record worth auditing — public, national,
+> per-structure, numeric, thirty-four years deep. You can't audit a record that doesn't exist, and
+> buildings don't have one. Surfside cost 98 lives and there was nothing to check it against."**
+> **"America, because that record only exists there. India is building the same thing right now."**
 
-**Slide 4 — The idea.** *This is the slide that wins or loses the pitch. Slow down.*
-> **"Infrastructure does not fail silently. It fails contradicted."**
-> **"So we keep two witnesses. The Paper Witness is what the institution believes. The Physics Witness
-> predicts what the rating should be from evidence alone, and no filed rating is ever one of its
-> inputs. The product is not another risk score. The product is the disagreement."**
+**4 — Two accounts.** *This is the slide the whole pitch rests on. Slow down.*
+> **"We keep two accounts of every bridge. One is what the institution filed. The other predicts
+> what the rating should be from the physical evidence alone — age, traffic, trucks, span, weather.
+> It's graded against the inspector's rating, but it never gets to read one."**
+> **"When they stop agreeing, that disagreement is the product."**
 
-**Slide 5 — How it works.**
-Walk the six steps in about thirty seconds. Land two things only:
-> **"Trained only up to 2015. Everything after that, the model has never seen."**
-> **"And no inspector's rating is ever one of its inputs. It gets graded against that rating.
-> It never gets to read one."**
-> **"And the docket is capped to what an inspection team can actually do in a quarter — twelve
-> mandatory, twenty-four scheduled, forty-eight watched."**
+**5 — Not a dashboard. A docket.**
+> **"The output isn't a risk score. It's a ranked list of the bridges whose file has drifted
+> furthest from the evidence, capped to what a team can actually visit in a quarter."**
 
-**Slide 6 — The proof.** *Point at the chart with your hand.*
-> **"This is a real Vermont bridge. The black line is the official record: it says 8, a good rating,
-> for years. The blue line is our model, which never saw the record — it says 6. In 2025 the inspectors
-> came back and filed a 3. We had that structure inside our alert budget nine years earlier."**
+**6 — 621,137.**
+> **"Every rated bridge in the country, drawn in the browser from a ten-megabyte file. Zero sensors
+> installed. This view doesn't even need our server, so nothing we run can break while you're
+> marking us."**
 
-**Slide 7 — Validation.** *Say the second half. It is the strongest thing you have.*
-> **"We hid the answers and checked. Eighteen hundred 'the record was forced to catch up' events
-> across four states; the 166 after 2018 the model has never seen. It caught 23% inside a 15% alert
-> budget, with a median warning of three and a half years."**
->
-> **"Then we ran the control that matters. Sorting bridges by their worst recorded rating — no model
-> at all — catches 40 of those 166. We catch 38. On the raw count, the dumb baseline beats us.**
->
-> **But split those 166 by what the file said at the time. Fifty-eight were bridges the record
-> already called bad; worst-first finds 40 of them, because that ranking is nearly a definition of
-> the answer. The other 108 were bridges the paperwork still called fine. Worst-first finds zero.
-> Not one. We find twenty-five."**
->
-> **"Sorting by the worst rating can only ever point at bridges you already worry about. The
-> failures that kill people are the ones nobody was worried about."**
+**7 — Public data in. A work order out.**
+> **"Four steps, and the whole design is one refusal: no inspector rating is ever one of its
+> inputs. It gets graded against that rating. It never gets to read one."**
 
-If a judge looks skeptical, add: *"And we control for it properly — against a blind pick with the
-same rating mix as ours we run 1.34 times better. Say the interval too: 0.99 to 1.73. It includes
-1.0, so on 166 events we cannot rule out that it adds nothing. The segment finding does not depend
-on that number, and that is why we lead with the segment finding."*
+**8 — Frozen in 2015.**
+> **"Trained to 2015, calibrated to 2018, and every number we quote comes from 2019 onward — data
+> it has never been shown. And our coverage is 89% against a 90% target. We report it short rather
+> than go back and retune on the test years."**
 
-**Slide 8 — Scale.**
-> **"That's every rated bridge in the United States, 621,137 of them, drawn live in the browser from a
-> ten-megabyte file. This view needs no server at all, so nothing can crash while you're marking us."**
-The system does have a real backend (you'll show it in the demo); this slide's point is that the
-*map* deliberately does not depend on it.
+**9 — Just sort by the worst rating.** *Give the objection away before they raise it.*
+> **"Here's the obvious objection. Forget the model — just take the bridges the file already rates
+> worst and inspect the top 15%. That catches 40 of the 166 real failures. We catch 38."**
+> **"On the raw count, the version with no model in it beats us. That's printed in our own
+> product, not buried in an appendix."**
 
-**Slide 9 — Why it's new.**
-> **"Everything on the market measures the asset. Sensors, satellites, risk models, inspection AI. We
-> audit the paperwork *against* the asset. That's a different category, and it's why we can cover a
-> hundred percent of an inventory with zero installed hardware."**
+**10 — 108.** *Say nothing for two seconds. Let the number do it.*
+> **"Of those 166 failures, 108 were on bridges the record still called FINE. Sorting by the worst
+> rating is blind to every single one of them, by construction. It can only ever point at bridges
+> you already worry about."**
 
-**Slide 10 — Honesty.** *Do not rush this. It is worth more than another feature.*
-> **"Here's what it can't do. It abstains entirely on bridges under five years old, because they're
-> outside what it can calibrate. Our uncertainty intervals cover 89% against a 90% target, and we report
-> the shortfall rather than retune on the test years. And some failures have no precursor in any record."**
+**11 — Zero versus twenty-five.**
+> **"Same 108 failures, two ways of choosing who to look at. The no-model ranking found none of
+> them. We found twenty-five. And a failure on a bridge the file still calls fine is the only kind
+> that carries a warning — because nobody was watching it."**
 
-**Slide 11 — Impact.**
-> **"Today the average gap between looks at a structure is 730 days. Ours is the satellite revisit:
-> six to twelve. A county with five bridges and one engineer gets the same second opinion as a national
-> railway, because there's nothing to install and nothing to buy."**
-Then India: IBMS already inventories 172,517 structures on the same 0–9 idea, MoRTH is re-surveying them
-right now, and Morbi — 135 dead, four days after a renovation nobody checked against the physical
-cables — is exactly this failure mode.
+**12 — Pick a state and a year.** *Actually ask a judge. This is your strongest live moment.*
+> **"Name a state. Name a year. — Vermont, 2019. The server is pulling the 2019 federal file,
+> scoring all 2,748 bridges with the 2015 model, ranking them, then pulling the 2025 file to see
+> what happened. Ninety-three crossed into poor. Thirty-five of those the 2019 file still called
+> fine — worst-first found one of them, we found nine."**
+> **"And notice the base rate and the beating baseline are on screen. Every time. Including on the
+> states where we lose."**
 
-**Slide 12 — Close.**
-> **"Every number you've seen tonight is downloadable from the federal government. We didn't simulate a
-> single bridge."**
-Then open the live console.
+**13 — The limits are in the product.**
+> **"It abstains on anything under five years old. It under-covers and says so. It refuses to rank
+> 27 of the 51 states because out there we can't tell their optimism from our own error. And the
+> Washington Bridge — we missed it, and it's in the app labelled a miss."**
+> **"A system that can't tell you where it stops working isn't a second opinion. It's a guess."**
+
+**14 — We did not simulate a single bridge.**
+> **"Every number tonight came out of a file the US government publishes for free. Both halves are
+> live right now. Here are the links."**
+Then open the console.
 
 ---
 

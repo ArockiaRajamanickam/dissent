@@ -134,10 +134,10 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
   headline(s, 'We used American data because that is where\na public record exists to test against.',
            M, 1.0, { size: 28, color: INK, h: 1.5 });
   body(s, 'The Federal Highway Administration publishes the National Bridge Inventory as plain ' +
-          'delimited files, one per state per year, free to anyone. It is the only longitudinal ' +
-          'per-structure inspection record of its kind in the world. If you want to prove that a ' +
-          'model can catch a record drifting away from reality, that is the only place the ' +
-          'experiment can actually be run.',
+          'delimited files, one per state per year, free to anyone. We know of no other public, ' +
+          'national, per-structure inspection record that runs this long or this openly. If you ' +
+          'want to prove a model can catch a record drifting away from reality, you have to run ' +
+          'the experiment where a record exists to drift.',
        M, 2.55, 6.15, { size: 14, color: INK, h: 1.9 });
 
   const cx = 7.35, cw = W - M - cx;
@@ -155,9 +155,9 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
   s.addText('GUJARAT  ·  OCTOBER 2022  ·  135 DEAD', {
     x: cx, y: 5.3, w: cw, h: 0.24, isTextBox: true, margin: 0,
     fontFace: MONO, fontSize: 8.4, color: GREY, charSpacing: 0.9 });
-  s.addText('A bridge reopened four days after a renovation that nobody checked against the ' +
-    'physical cables. This is the failure mode, exactly.',
-    { x: cx, y: 5.62, w: cw, h: 0.8, isTextBox: true, margin: 0, valign: 'top',
+  s.addText('A bridge reopened four days after a renovation, with no public per-structure series ' +
+    'anyone outside could have checked against it. This is the failure mode, exactly.',
+    { x: cx, y: 5.62, w: cw, h: 0.9, isTextBox: true, margin: 0, valign: 'top',
       fontFace: SERIF, fontSize: 11.5, italic: true, color: GREY, lineSpacing: 16 });
 
   s.addNotes('Answer this one head-on and without apology. The method audits a paper record, so it ' +

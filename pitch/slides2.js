@@ -201,7 +201,7 @@ const N_STRUCT = IDX.index.reduce((a, r) => a + r.structures, 0);
 // ══════════════════════════════════════════════════════════ 18 THE ENGINEERING
 {
   const s = darkSlide('10_residual_traces.jpg');
-  scrim(s, 0, 0, 7.4, H, { t: 14 });
+  scrim(s, 0, 0, W, H, { t: 30 });   // full bleed: a half-width scrim seams visibly
   kicker(s, '18 / it is a system, not a notebook', M, 0.58, ROSE);
   headline(s, 'Half of this physically cannot run in a browser.',
            M, 0.94, { size: 26, w: 6.5, h: 0.9 });
