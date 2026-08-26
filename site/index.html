@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DISSENT — the machine second opinion</title>
+<meta name="description" content="DISSENT audits every bridge in an inventory by testing the official inspection record against a physics-only model. Team Nexus Network, AI Innovation Challenge 2026.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2316204A'/><text x='50' y='68' font-size='52' text-anchor='middle' fill='%23FAF8F4' font-family='monospace' font-weight='bold'>D</text><rect x='20' y='78' width='60' height='8' fill='%23C6283C'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap bar-inner">
+    <a class="brand" href="#docket">DISSENT<span class="brand-dot"></span></a>
+    <nav>
+      <a href="#docket" data-nav="docket">Docket</a>
+      <a href="#washington" data-nav="washington">Washington Bridge</a>
+      <a href="#morandi" data-nav="morandi">Morandi Replay</a>
+      <a href="#method" data-nav="method">Method</a>
+    </nav>
+  </div>
+  <div class="redline"></div>
+</header>
+
+<section class="hero wrap">
+  <p class="kicker">AI INNOVATION CHALLENGE 2026 &nbsp;|&nbsp; ROUND 3 : AI EVOLUTION &nbsp;|&nbsp; TEAM NEXUS NETWORK, DEPT. OF CSE (CYBER SECURITY)</p>
+  <h1>The machine second opinion,<br>running on every bridge in Rhode&nbsp;Island.</h1>
+  <p class="sub">A physics-only model re-inspects all <span id="hero-n">—</span> structures in the state from open federal records, real weather histories and traffic loads, and files a <b>dissent</b> wherever the official inspection record stops agreeing with the physical evidence. Trained on data through 2015 only; everything after is a held-out test.</p>
+  <div id="stat-band" class="stats"></div>
+</section>
+
+<main class="wrap">
+  <section id="view-docket" class="view"></section>
+  <section id="view-washington" class="view"></section>
+  <section id="view-morandi" class="view"></section>
+  <section id="view-method" class="view"></section>
+</main>
+
+<div id="dossier-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="dossier" id="dossier-body"></div>
+</div>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div>
+      <span class="mono">TEAM NEXUS NETWORK | DEPARTMENT OF CSE (CYBER SECURITY)</span><br>
+      <span class="mono dim">AI INNOVATION CHALLENGE 2026 | BATTLE OF INTELLIGENCE | ROUND 3</span>
+    </div>
+    <div class="mono dim right">
+      Data: FHWA NBI 1992-2025 | Open-Meteo (ERA5) | Milillo et al. 2019<br>
+      <a id="repo-link" href="#" target="_blank" rel="noopener">Source code on GitHub</a> | Model frozen at 2015, judged on 2019+
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

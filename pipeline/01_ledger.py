@@ -1,0 +1,137 @@
+#!/usr/bin/env python3
+"""Build the DISSENT asset ledger from raw FHWA NBI files (Rhode Island).
+
+Parses 1992-2025 delimited NBI files into one trajectory per structure and
+mines "record forced to catch up" proxy events (sudden >=2-step condition
+drops or closures between inspection snapshots).
+"""
+import glob
+import os
+import re
+import pandas as pd
+import numpy as np
+
+RAW = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
+OUT = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
+os.makedirs(OUT, exist_ok=True)
+
+KEEP = {
+    'STRUCTURE_NUMBER_008': 'sid',
+    'FACILITY_CARRIED_007': 'carries',
+    'FEATURES_DESC_006A': 'crosses',
+    'LOCATION_009': 'location',
+    'LAT_016': 'lat_raw',
+    'LONG_017': 'lon_raw',
+    'YEAR_BUILT_027': 'built',
+    'YEAR_RECONSTRUCTED_106': 'rebuilt',
+    'ADT_029': 'adt',
+    'PERCENT_ADT_TRUCK_109': 'truck_pct',
+    'TRAFFIC_LANES_ON_028A': 'lanes',
+    'STRUCTURE_KIND_043A': 'material',
+    'STRUCTURE_TYPE_043B': 'design',
+    'STRUCTURE_LEN_MT_049': 'length_m',
+    'DEGREES_SKEW_034': 'skew',
+    'DECK_COND_058': 'deck',
+    'SUPERSTRUCTURE_COND_059': 'superstructure',
+    'SUBSTRUCTURE_COND_060': 'substructure',
+    'CULVERT_COND_062': 'culvert',
+    'OPEN_CLOSED_POSTED_041': 'status',
+}
+
+MATERIAL = {1: 'Concrete', 2: 'Concrete continuous', 3: 'Steel',
+            4: 'Steel continuous', 5: 'Prestressed concrete',
+            6: 'Prestressed continuous', 7: 'Wood', 8: 'Masonry',
+            9: 'Aluminum/iron', 0: 'Other'}
+DESIGN = {1: 'Slab', 2: 'Stringer/girder', 3: 'Girder & floorbeam',
+          4: 'Tee beam', 5: 'Box beam (multiple)', 6: 'Box beam (single)',
+          7: 'Frame', 8: 'Orthotropic', 9: 'Truss (deck)',
+          10: 'Truss (thru)', 11: 'Arch (deck)', 12: 'Arch (thru)',
+          13: 'Suspension', 14: 'Stayed girder', 15: 'Movable (lift)',
+          16: 'Movable (bascule)', 17: 'Movable (swing)', 19: 'Culvert',
+          21: 'Segmental box', 22: 'Channel beam'}
+
+
+def dms(v, digits):
+    """NBI coded lat/long DDMMSS.SS (x100) -> decimal degrees."""
+    try:
+        s = re.sub(r'\D', '', str(v)).zfill(digits)
+        d = int(s[:digits - 6])
+        m = int(s[digits - 6:digits - 4])
+        sec = int(s[digits - 4:]) / 100.0
+        out = d + m / 60 + sec / 3600
+        return out if out > 0.5 else np.nan
+    except Exception:
+        return np.nan
+
+
+def cond(v):
+    v = str(v).strip()
+    return int(v) if v.isdigit() else np.nan
+
+
+rows = []
+for path in sorted(glob.glob(os.path.join(RAW, 'RI*.txt'))):
+    year = int(re.search(r'RI(\d{4})', path).group(1))
+    df = pd.read_csv(path, dtype=str, usecols=lambda c: c in KEEP,
+                     on_bad_lines='skip', encoding_errors='replace')
+    df = df.rename(columns=KEEP)
+    df['year'] = year
+    rows.append(df)
+panel = pd.concat(rows, ignore_index=True)
+panel['sid'] = panel['sid'].str.strip()
+panel = panel.drop_duplicates(subset=['sid', 'year'], keep='first')
+
+for c in ['deck', 'superstructure', 'substructure', 'culvert']:
+    panel[c] = panel[c].map(cond)
+panel['rating'] = panel[['deck', 'superstructure', 'substructure',
+                         'culvert']].min(axis=1)
+for c in ['built', 'rebuilt', 'adt', 'truck_pct', 'lanes', 'material',
+          'design', 'length_m', 'skew']:
+    panel[c] = pd.to_numeric(panel[c], errors='coerce')
+panel['lat'] = panel['lat_raw'].map(lambda v: dms(v, 8))
+panel['lon'] = -panel['lon_raw'].map(lambda v: dms(v, 9))
+panel['closed'] = panel['status'].astype(str).str.strip().eq('K')
+
+panel = panel[panel['rating'].notna() | panel['closed']]
+panel.to_parquet(os.path.join(OUT, 'panel.parquet'))
+
+# ---- proxy-event mining: >=2-step drops or closures between snapshots ----
+events = []
+for sid, g in panel.sort_values('year').groupby('sid'):
+    g = g[g['rating'].notna()]
+    r = g[['year', 'rating']].values
+    for i in range(1, len(r)):
+        drop = r[i - 1][1] - r[i][1]
+        if drop >= 2:
+            events.append(dict(sid=sid, year=int(r[i][0]),
+                               prev_year=int(r[i - 1][0]),
+                               from_rating=int(r[i - 1][1]),
+                               to_rating=int(r[i][1]), kind='drop'))
+    gc = panel[(panel['sid'] == sid)].sort_values('year')
+    cl = gc[gc['closed']]
+    if len(cl) and not gc['closed'].iloc[0]:
+        first_closed = int(cl['year'].iloc[0])
+        events.append(dict(sid=sid, year=first_closed, prev_year=first_closed - 1,
+                           from_rating=-1, to_rating=-1, kind='closed'))
+ev = pd.DataFrame(events).drop_duplicates(subset=['sid', 'year', 'kind'])
+ev.to_parquet(os.path.join(OUT, 'events.parquet'))
+
+latest = panel.sort_values('year').groupby('sid').tail(1)
+print(f'panel: {len(panel)} rows, {panel.sid.nunique()} structures, '
+      f'{panel.year.min()}-{panel.year.max()}')
+print(f'latest snapshot: {len(latest)} assets, '
+      f"poor(<=4): {(latest.rating <= 4).sum()}, closed: {latest.closed.sum()}")
+print(f'proxy events: {len(ev)} ({(ev.kind == "drop").sum()} drops, '
+      f'{(ev.kind == "closed").sum()} closures); '
+      f'2019+: {(ev.year >= 2019).sum()}')
+
+# ---- the Washington Bridge hunt ----
+mask = (panel['carries'].astype(str).str.contains('195', na=False) &
+        panel['crosses'].astype(str).str.upper().str.contains('SEEKONK', na=False))
+wb = panel[mask].sort_values(['sid', 'year'])
+if len(wb):
+    print('\nWASHINGTON BRIDGE CANDIDATES (I-195 over Seekonk River):')
+    for sid, g in wb.groupby('sid'):
+        tail = g.tail(6)[['year', 'rating', 'closed', 'carries', 'location']]
+        print(f'  sid={sid}')
+        print(tail.to_string(index=False))
