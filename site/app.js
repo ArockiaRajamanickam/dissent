@@ -240,8 +240,8 @@ function renderDocketTable() {
           <td>${sparkline(a.traj)}</td>
           <td class="mono">${a.built || '—'}</td>
           <td class="mono">${fmt(a.adt)}</td>
-          <td class="ratingpair"><b>${a.recorded}</b>/9</td>
-          <td class="ratingpair">${a.pred.toFixed(1)} <span class="dim">[${Math.max(a.lower, 0).toFixed(1)}-${Math.min(a.upper, 9).toFixed(1)}]</span></td>
+          <td><span class="rchip rc-${rcls(a.recorded)}">${a.recorded}</span></td>
+          <td><span class="rchip rc-${rcls(a.pred)}">${a.pred.toFixed(1)}</span> <span class="dim mono" style="font-size:10.5px">[${Math.max(a.lower, 0).toFixed(1)}-${Math.min(a.upper, 9).toFixed(1)}]</span></td>
           <td>${meter(a.state)}</td>
           <td>${meter(a.trend, 'teal')}</td>
           <td>${meter(a.cond, 'steel')}</td>
@@ -312,6 +312,7 @@ function openDossier(sid) {
       </div>
       <div class="stamp" style="--tilt:${(((parseInt(a.sid, 10) || 7) % 2 ? 1 : -1) * (2 + ((parseInt(a.sid, 10) || 7) % 9) * 0.6)).toFixed(1)}deg;--ink:${(0.62 + ((parseInt(a.sid, 10) || 3) % 8) * 0.04).toFixed(2)}">${stampText}</div>
     </div>
+    <div class="rduel rduel-lg">${rbadge('THE RECORD SAYS', a.recorded)}<em>vs</em>${rbadge('PHYSICS SAYS', a.pred, '[' + Math.max(a.lower, 0).toFixed(1) + ' - ' + Math.min(a.upper, 9).toFixed(1) + ']')}</div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
     ${trajChart(a.traj, a.cps)}
     ${figbar(LEG.record + LEG.physics + LEG.bandc + LEG.cp,
@@ -387,6 +388,13 @@ const TILES = {
   sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         'Esri, Maxar, Earthstar Geographics'],
 };
+function rcls(v) { return v <= 4 ? 'poor' : v <= 6 ? 'fair' : 'good'; }
+function rword(v) { return v <= 4 ? 'POOR' : v <= 6 ? 'FAIR' : 'GOOD'; }
+function rbadge(label, value, sub) {
+  const v = Math.round(value);
+  return `<span class="rbadge rb-${rcls(v)}"><i>${label}</i><b>${typeof value === 'number' && value % 1 ? value.toFixed(1) : value}</b>` +
+         `<u>${sub || rword(v)}</u></span>`;
+}
 function satMiniHTML(lat, lon, w = 236, h = 150, z = 17) {
   const scale = 256 * Math.pow(2, z);
   const s = Math.sin(lat * Math.PI / 180);
@@ -443,8 +451,8 @@ function rebuildMarkers() {
       const mk = L.circleMarker([a.lat, a.lon], base).addTo(__map).bindPopup(
         satMiniHTML(a.lat, a.lon) +
         `<b>${a.carries || 'Unnamed'}</b><br>over ${a.crosses || '—'}<br>` +
-        `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span> ` +
-        `record ${a.recorded} vs physics ${a.pred.toFixed(1)}<br>` +
+        `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span>` +
+        `<span class="rduel">${rbadge('RECORD', a.recorded)}<em>vs</em>${rbadge('PHYSICS', a.pred)}</span>` +
         `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`,
         { maxWidth: 260, minWidth: 240 });
       mk.__base = base; mk.__band = band;
@@ -897,8 +905,8 @@ function natClick(e) {
   const c = nat.cond[best];
   L.popup({ maxWidth: 260, minWidth: 240 }).setLatLng([nat.lat[best], nat.lon[best]])
     .setContent(satMiniHTML(nat.lat[best], nat.lon[best]) +
-      `<b>${nat.meta.states[nat.stIdx[best]]}</b> | national snapshot 2025<br>` +
-      `bridge or culvert | condition <b>${c}</b>/9 (${c <= 4 ? 'poor' : c <= 6 ? 'fair' : 'good'})<br>` +
+      `<b>${nat.meta.states[nat.stIdx[best]]}</b> | bridge or culvert | 2025 snapshot` +
+      `<span class="rduel">${rbadge('CONDITION', c)}</span>` +
       `built ${nat.built[best] || 'unknown'} | ADT ${fmt(nat.adt[best] || null)}<br>` +
       `<span style="font-size:10px">deep audit runs in the four fleet states</span>`)
     .openOn(__map);
