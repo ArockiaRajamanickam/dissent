@@ -2,7 +2,7 @@
 'use strict';
 
 const REPO_URL = 'https://github.com/ArockiaRajamanickam/dissent';
-const API_BASE = 'https://dissent-api.onrender.com';
+const API_BASE = 'https://dissent-api-jgod.onrender.com';
 const state = { assets: [], summary: null, events: null, morandi: null,
                 world: null, exhibit: null, jur: 'RI', eventsRI: null,
                 bandFilter: 'priority', query: '', sortKey: 'rank', sortAsc: true };
