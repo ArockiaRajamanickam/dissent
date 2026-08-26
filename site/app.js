@@ -270,9 +270,9 @@ function openDossier(sid) {
   const gap = a.recorded - a.upper;
   let verdict;
   if (a.newbuild) {
-    verdict = `Structure is <b>${(state.summary.latest_year - (a.built || state.summary.latest_year))} years old or newer than the model's
-      training support allows. <b>The physics witness abstains</b>: structures younger than five years carry
-      no dissent verdict and no obligation. Listed for completeness.`;
+    verdict = `This structure entered service ${a.built ? 'in <b>' + a.built + '</b>' : 'recently'}, inside the
+      five-year window the model's training support cannot calibrate. <b>The physics witness abstains</b>:
+      no dissent verdict, no obligation. Listed for completeness.`;
   } else verdict = gap > 0
     ? `The record calls this a <b>${a.recorded}</b>. Physics, never shown the record, calls it
        <b>${a.pred.toFixed(1)}</b> (interval ${Math.max(a.lower, 0).toFixed(1)} to ${Math.min(a.upper, 9).toFixed(1)}).
