@@ -5,7 +5,10 @@ AI Innovation Challenge 2026, Battle of Intelligence, Round 3: AI Evolution.
 
 **Live deployment: https://dissent-nexus.netlify.app**
 
-Now a four-state fleet: Rhode Island, Vermont, New Hampshire and Delaware —
+The map carries a NATIONAL toggle plotting the entire 2025 federal file:
+all 621,137 rated structures in the United States (41,319 poor), packed into a
+9.9 MB binary and drawn client-side on a canvas layer — no backend, nothing to
+cold-start. The deep audit runs in a four-state fleet: Rhode Island, Vermont, New Hampshire and Delaware —
 234,801 real inspection records across 9,766 structures, one pooled model,
 per-state dockets with a jurisdiction switcher in the console. Validated on
 182 held-out post-2018 events: 29% flagged early inside a top-15% budget

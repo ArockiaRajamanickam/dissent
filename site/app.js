@@ -401,10 +401,20 @@ function rebuildMarkers() {
     });
   });
   if (pts.length) __map.fitBounds(pts, { padding: [14, 14] });
-  $('#map-legend').innerHTML =
-    Object.entries({ inspect: 'INSPECT NOW', schedule: 'SCHEDULE', watch: 'WATCH', clear: 'CLEAR' })
-      .map(([b, lab]) => `<div><i style="background:${BAND_COLOR[b]}"></i>${lab}</div>`).join('');
+  fleetLegend();
   applyMarkerFilter();
+  if (nat.mode === 'national') {
+    Object.values(__markers).forEach(mk => __map.removeLayer(mk));
+    drawNational();
+  }
+  if (!document.querySelector('#map-mode')) {
+    const mm = L.DomUtil.create('div', 'map-mode mono');
+    mm.id = 'map-mode';
+    mm.innerHTML = '<button data-mode="fleet" class="active">FLEET AUDIT</button>' +
+                   '<button data-mode="national">NATIONAL 621K</button>';
+    $('#map-side').appendChild(mm);
+    mm.querySelectorAll('button').forEach(b => b.onclick = () => setMapMode(b.dataset.mode));
+  }
 }
 function highlightMarker(sid, on) {
   const mk = __markers[sid];
@@ -576,7 +586,9 @@ function renderMethod() {
         Inventory files across four states: Rhode Island, Vermont, New Hampshire and Delaware
         (${fmt(s.n_records)} records, ${fmt(s.n_structures)} structures) parsed into one trajectory per asset.
         Rhode Island is the flagship pilot: the worst bridge stock in the nation. One model is trained,
-        pooled across the fleet; each state gets its own docket and inspection budget.</p></div>
+        pooled across the fleet; each state gets its own docket and inspection budget. The map's NATIONAL
+        toggle plots the entire 2025 federal file, all 621,137 rated structures, from a 9.9 MB binary
+        drawn client-side; the fleet states are where the full 34-year audit runs.</p></div>
       <div class="step"><span class="n">STEP 02</span><p><b>Physics evidence.</b> Structure age, years since major work, traffic
         volume and truck share, structural form and material, length and skew, plus real weather histories from
         ERA5 reanalysis (Open-Meteo archive): freeze-thaw cycle days, cumulative frost exposure, heavy-rain days,
@@ -635,6 +647,147 @@ function renderMethod() {
         SET IN FRAUNCES, SOURCE SERIF AND COURIER PRIME
       </div>
     </div>`;
+}
+
+/* ============ the national snapshot layer ============ */
+const nat = { loaded: false, loading: false, mode: 'fleet',
+              n: 0, meta: null, mx: null, my: null, cond: null,
+              built: null, adt: null, stIdx: null, grid: null,
+              canvas: null };
+
+async function loadNational() {
+  if (nat.loaded || nat.loading) return nat.loaded;
+  nat.loading = true;
+  $('#map-legend').innerHTML = '<div>READING THE NATIONAL RECORD… 9.9 MB</div>';
+  const [buf, meta] = await Promise.all([
+    fetch('data/national.bin').then(r => r.arrayBuffer()),
+    fetch('data/national_meta.json').then(r => r.json())]);
+  const dv = new DataView(buf);
+  const n = Math.floor(buf.byteLength / 16);
+  nat.n = n; nat.meta = meta;
+  nat.mx = new Float32Array(n); nat.my = new Float32Array(n);
+  nat.cond = new Int8Array(n); nat.built = new Uint16Array(n);
+  nat.adt = new Uint32Array(n); nat.stIdx = new Uint8Array(n);
+  nat.lat = new Float32Array(n); nat.lon = new Float32Array(n);
+  nat.grid = new Map();
+  for (let i = 0; i < n; i++) {
+    const off = i * 16;
+    const lat = dv.getFloat32(off, true), lon = dv.getFloat32(off + 4, true);
+    nat.lat[i] = lat; nat.lon[i] = lon;
+    nat.cond[i] = dv.getInt8(off + 8);
+    nat.built[i] = dv.getUint16(off + 9, true);
+    nat.adt[i] = dv.getUint32(off + 11, true);
+    nat.stIdx[i] = dv.getUint8(off + 15);
+    nat.mx[i] = (lon + 180) / 360;
+    const s = Math.sin(lat * Math.PI / 180);
+    nat.my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+    const key = (Math.floor(lat * 4)) * 4096 + Math.floor((lon + 180) * 4);
+    let cell = nat.grid.get(key);
+    if (!cell) nat.grid.set(key, cell = []);
+    cell.push(i);
+  }
+  nat.loaded = true; nat.loading = false;
+  return true;
+}
+
+function drawNational() {
+  if (!nat.loaded || nat.mode !== 'national' || !__map) return;
+  if (!nat.canvas) {
+    nat.canvas = L.DomUtil.create('canvas', 'nat-canvas');
+    __map.getPanes().overlayPane.appendChild(nat.canvas);
+  }
+  const size = __map.getSize();
+  nat.canvas.width = size.x; nat.canvas.height = size.y;
+  L.DomUtil.setPosition(nat.canvas, __map.containerPointToLayerPoint([0, 0]));
+  const ctx = nat.canvas.getContext('2d');
+  ctx.clearRect(0, 0, size.x, size.y);
+  const z = __map.getZoom();
+  const scale = 256 * Math.pow(2, z);
+  // calibrate against Leaflet's own projection so the math is exact
+  const ref = __map.getCenter();
+  const refCp = __map.latLngToContainerPoint(ref);
+  const s0 = Math.sin(ref.lat * Math.PI / 180);
+  const refMx = (ref.lng + 180) / 360;
+  const refMy = 0.5 - Math.log((1 + s0) / (1 - s0)) / (4 * Math.PI);
+  const dx = refCp.x - refMx * scale, dy = refCp.y - refMy * scale;
+  const px = z >= 9 ? 3 : z >= 7 ? 2 : 1;
+  const colors = ['rgba(58,92,168,0.5)', '#B8862D', '#C6283C'];
+  for (let pass = 0; pass < 3; pass++) {
+    ctx.fillStyle = colors[pass];
+    for (let i = 0; i < nat.n; i++) {
+      const c = nat.cond[i];
+      const cls = c <= 4 ? 2 : c <= 6 ? 1 : 0;
+      if (cls !== pass) continue;
+      const x = nat.mx[i] * scale + dx, y = nat.my[i] * scale + dy;
+      if (x < -4 || y < -4 || x > size.x + 4 || y > size.y + 4) continue;
+      ctx.fillRect(x, y, px, px);
+    }
+  }
+}
+
+function natLegend() {
+  const m = nat.meta;
+  $('#map-legend').innerHTML =
+    `<div><i style="background:#C6283C"></i>POOR (0-4): ${fmt(m.poor_total)}</div>` +
+    `<div><i style="background:#B8862D"></i>FAIR (5-6)</div>` +
+    `<div><i style="background:rgba(58,92,168,0.8)"></i>GOOD (7-9)</div>` +
+    `<div style="margin-top:4px">${fmt(m.total)} STRUCTURES | 2025 FEDERAL FILE</div>`;
+}
+function fleetLegend() {
+  $('#map-legend').innerHTML =
+    Object.entries({ inspect: 'INSPECT NOW', schedule: 'SCHEDULE', watch: 'WATCH', clear: 'CLEAR' })
+      .map(([b, lab]) => `<div><i style="background:${BAND_COLOR[b]}"></i>${lab}</div>`).join('');
+}
+
+async function setMapMode(mode) {
+  if (!__map || mode === nat.mode) return;
+  nat.mode = mode;
+  document.querySelectorAll('#map-mode button').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode));
+  if (mode === 'national') {
+    const ok = await loadNational();
+    if (!ok) { nat.mode = 'fleet'; return; }
+    Object.values(__markers).forEach(mk => __map.removeLayer(mk));
+    natLegend();
+    sbCenter(`NATIONAL SNAPSHOT 2025 | ${fmt(nat.meta.total)} STRUCTURES | ${fmt(nat.meta.poor_total)} POOR`);
+    __map.fitBounds([[24.5, -125], [49.5, -66.5]]);
+    drawNational();
+    __map.on('moveend zoomend resize', drawNational);
+    __map.on('click', natClick);
+  } else {
+    __map.off('moveend zoomend resize', drawNational);
+    __map.off('click', natClick);
+    if (nat.canvas) nat.canvas.getContext('2d').clearRect(0, 0, nat.canvas.width, nat.canvas.height);
+    Object.values(__markers).forEach(mk => mk.addTo(__map));
+    applyMarkerFilter();
+    fleetLegend();
+    sbCenter('FHWA NBI | ERA5 (OPEN-METEO) | MILILLO 2019');
+    const pts = state.assets.filter(x => x.lat && x.lon).map(x => [x.lat, x.lon]);
+    if (pts.length) __map.fitBounds(pts, { padding: [14, 14] });
+  }
+}
+
+function natClick(e) {
+  if (nat.mode !== 'national' || !nat.loaded) return;
+  const { lat, lng } = e.latlng;
+  let best = -1, bd = 1e9;
+  for (let by = -1; by <= 1; by++) for (let bx = -1; bx <= 1; bx++) {
+    const key = (Math.floor(lat * 4) + by) * 4096 + Math.floor((lng + 180) * 4) + bx;
+    const cell = nat.grid.get(key);
+    if (!cell) continue;
+    for (const i of cell) {
+      const d = (nat.lat[i] - lat) ** 2 + (nat.lon[i] - lng) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+  }
+  if (best < 0 || bd > 0.02) return;
+  const c = nat.cond[best];
+  L.popup().setLatLng([nat.lat[best], nat.lon[best]])
+    .setContent(`<b>${nat.meta.states[nat.stIdx[best]]}</b> | national snapshot 2025<br>` +
+      `condition <b>${c}</b>/9 (${c <= 4 ? 'poor' : c <= 6 ? 'fair' : 'good'})<br>` +
+      `built ${nat.built[best] || 'unknown'} | ADT ${fmt(nat.adt[best] || null)}<br>` +
+      `<span style="font-size:10px">deep audit runs in the four fleet states</span>`)
+    .openOn(__map);
 }
 
 /* ============ jurisdictions ============ */
