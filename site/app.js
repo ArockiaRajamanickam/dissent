@@ -143,10 +143,10 @@ function renderChrome() {
   $('#runline').textContent =
     `RHODE ISLAND | NBI ${s.years[0]}-${s.years[1]} | MODEL FROZEN ${s.train_end} | DOCKET GENERATED ${s.generated} | ${fmt(s.n_assets)} OPEN STRUCTURES`;
   $('#stat-band').innerHTML =
-    `<b>${fmt(s.n_records)}</b> FILINGS READ<span class="sep">|</span>` +
-    `WRONG BY <b>${s.mae_test}</b> STEPS ON YEARS IT NEVER SAW<span class="sep">|</span>` +
+    `<b>${fmt(s.n_records)}</b> FILINGS<span class="sep">|</span>` +
+    `OFF BY <b>${s.mae_test}</b> STEPS, UNSEEN YEARS<span class="sep">|</span>` +
     `COVERAGE <b>${Math.round(s.coverage * 100)}%</b><span class="sep">|</span>` +
-    `<span class="hot">CAUGHT BEFORE THE RECORD: <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x CHANCE)</span><span class="sep">|</span>` +
+    `<span class="hot">CAUGHT <b>${Math.round(s.event_recall * 100)}%</b> (${lift}x CHANCE)</span><span class="sep">|</span>` +
     `<span class="hot">WASHINGTON LEAD <b>5 YRS</b></span>`;
   const nI = state.assets.filter(x => x.band === 'inspect').length;
   const nS = state.assets.filter(x => x.band === 'schedule').length;
@@ -157,6 +157,8 @@ function renderChrome() {
     `<span class="ok">CONFORMAL ${Math.round(s.coverage * 100)}% (TARGET 90%)</span> | OPERATOR: NEXUS NETWORK`;
   $('#panel-title').textContent =
     `DISSENT DOCKET | Q3 2026 | CAP ${nI + nS + nW} OF ${fmt(s.n_assets)}`;
+  const rd = document.querySelector('.run-dot');
+  if (rd) { rd.classList.add('live'); rd.title = 'model artifacts loaded, console live'; }
 }
 function sbCenter(text) { $('#sb-center').textContent = text; }
 
