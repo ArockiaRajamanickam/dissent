@@ -312,6 +312,12 @@ for ST in STATES:
             lat=None if pd.isna(last['lat']) else round(float(last['lat']), 5),
             lon=None if pd.isna(last['lon']) else round(float(last['lon']), 5),
             built=None if pd.isna(last['built']) else int(last['built']),
+            rebuilt=None if pd.isna(last['rebuilt']) or last['rebuilt'] <= 0
+                else int(last['rebuilt']),
+            length_m=None if pd.isna(last['length_m']) else round(float(last['length_m']), 1),
+            lanes=None if pd.isna(last['lanes']) else int(last['lanes']),
+            truck_pct=None if pd.isna(last['truck_pct']) else int(last['truck_pct']),
+            last_year=int(g['year'].max()),
             adt=None if pd.isna(last['adt']) else int(last['adt']),
             material=MATERIAL_LABEL.get(
                 int(last['material']) if not pd.isna(last['material']) else -1,

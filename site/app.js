@@ -313,6 +313,16 @@ function openDossier(sid) {
       <div class="stamp" style="--tilt:${(((parseInt(a.sid, 10) || 7) % 2 ? 1 : -1) * (2 + ((parseInt(a.sid, 10) || 7) % 9) * 0.6)).toFixed(1)}deg;--ink:${(0.62 + ((parseInt(a.sid, 10) || 3) % 8) * 0.04).toFixed(2)}">${stampText}</div>
     </div>
     <div class="rduel rduel-lg">${rbadge('THE RECORD SAYS', a.recorded)}<em>vs</em>${rbadge('PHYSICS SAYS', a.pred, '[' + Math.max(a.lower, 0).toFixed(1) + ' - ' + Math.min(a.upper, 9).toFixed(1) + ']')}</div>
+    <div class="particulars mono">
+      <span><i>BUILT</i>${a.built || '—'}${a.built ? ' (' + (state.summary.latest_year - a.built) + ' YRS)' : ''}</span>
+      <span><i>REBUILT</i>${a.rebuilt || 'NEVER'}</span>
+      <span><i>LENGTH</i>${a.length_m ? a.length_m + ' M' : '—'}</span>
+      <span><i>LANES</i>${a.lanes ?? '—'}</span>
+      <span><i>DAILY TRAFFIC</i>${fmt(a.adt)}</span>
+      <span><i>TRUCK SHARE</i>${a.truck_pct != null ? a.truck_pct + '%' : '—'}</span>
+      <span><i>MATERIAL</i>${(a.material || 'UNKNOWN').toUpperCase()}</span>
+      <span><i>LAST FILED</i>${a.last_year || '—'}</span>
+    </div>
     <div class="verdict"><span class="mono">MACHINE SECOND OPINION</span><p>${verdict}</p></div>
     ${trajChart(a.traj, a.cps)}
     ${figbar(LEG.record + LEG.physics + LEG.bandc + LEG.cp,
@@ -453,6 +463,7 @@ function rebuildMarkers() {
         `<b>${a.carries || 'Unnamed'}</b><br>over ${a.crosses || '—'}<br>` +
         `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span>` +
         `<span class="rduel">${rbadge('RECORD', a.recorded)}<em>vs</em>${rbadge('PHYSICS', a.pred)}</span>` +
+        `<span class="mono" style="font-size:10px;color:#6A7088">BUILT ${a.built || '—'} | ${fmt(a.adt)} VEHICLES/DAY | ${(a.material || '').toUpperCase()}</span><br>` +
         `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`,
         { maxWidth: 260, minWidth: 240 });
       mk.__base = base; mk.__band = band;
