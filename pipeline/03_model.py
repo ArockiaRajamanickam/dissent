@@ -242,7 +242,8 @@ for sid, g in df.groupby('sid'):
         cond_d = max(0.0, 5.0 - float(r['pred'])) / 5.0
         t = priority_terms(state_d, trend_d, cond_d)
         rows.append(dict(state=state_d, trend=trend_d, cond=cond_d,
-                         cp=recent_cp, prio=sum(t), terms=t))
+                         cp=recent_cp, prio=sum(t), terms=t,
+                         rating=float(r['rating'])))
     P[sid] = dict(years=years, rows=rows, cps=cps, g=g)
 print(f'scored {len(P)} assets in one pass each')
 
@@ -300,6 +301,98 @@ recall = flagged / max(len(ev_rows), 1)
 print(f'held-out events 2019+ (pooled): {len(ev_rows)}, flagged early '
       f'{flagged} ({recall:.0%}) in top {BUDGET_FRAC:.0%}; '
       f'median lead {np.median(leads) if leads else 0:.0f} yrs')
+
+# ------------------------------------------------- controls
+# A ranking can look skilful purely by preferring structures that are already
+# nearly poor. These controls ask whether the dissent score carries information
+# the recorded rating does not already carry.
+def eligible_at(ref_year):
+    out = {}
+    for sid in P:
+        hit = at_or_before(sid, ref_year)
+        if not hit:
+            continue
+        i, row = hit
+        if P[sid]['years'][i] < ref_year - 3:
+            continue
+        out[sid] = row
+    return out
+
+def top_by(ref_year, key, _c={}):
+    ck = (ref_year, key)
+    if ck not in _c:
+        el = eligible_at(ref_year)
+        ranked = sorted(el, key=lambda s: -key_fn[key](el[s]))
+        _c[ck] = set(ranked[:max(1, int(len(ranked) * BUDGET_FRAC))])
+    return _c[ck]
+
+key_fn = {'prio': lambda r: r['prio'],
+          'worst_recorded': lambda r: -r['rating']}
+
+ctl_flagged = {k: 0 for k in key_fn}
+exp_strat = 0.0
+for _, e in ev_test.iterrows():
+    if e['sid'] not in P:
+        continue
+    ref = int(e['prev_year'])
+    for k in key_fn:
+        ctl_flagged[k] += e['sid'] in top_by(ref, k)
+    # rating-matched expectation: given the rating mix our own top set picked
+    # at this reference year, how often would a blind pick catch this event?
+    el = eligible_at(ref)
+    ours = top_by(ref, 'prio')
+    hit = at_or_before(e['sid'], ref)
+    if not hit:
+        continue
+    r_e = hit[1]['rating']
+    same = [s for s in el if el[s]['rating'] == r_e]
+    picked = sum(1 for s in same if s in ours)
+    if same:
+        exp_strat += picked / len(same)
+
+n_ev = max(len(ev_rows), 1)
+print(f'  control  random top {BUDGET_FRAC:.0%}      : {BUDGET_FRAC*n_ev:5.1f} expected '
+      f'({BUDGET_FRAC:.0%}) -> our lift {recall/BUDGET_FRAC:.2f}x')
+print(f'  control  worst recorded first : {ctl_flagged["worst_recorded"]:5d} caught '
+      f'({ctl_flagged["worst_recorded"]/n_ev:.0%}) -> lift {ctl_flagged["worst_recorded"]/n_ev/BUDGET_FRAC:.2f}x')
+print(f'  control  RATING-MATCHED blind : {exp_strat:5.1f} expected '
+      f'({exp_strat/n_ev:.0%}) -> our lift over it {flagged/max(exp_strat,1e-9):.2f}x'
+      '   <-- does dissent beat the rating alone?')
+# Where does each ranking actually earn its keep? Split the events by what the
+# paperwork said at the reference year. "Worst recorded first" can only ever find
+# structures the record ALREADY calls bad; it is blind by construction to a
+# structure whose file still reads fine. That blind spot is the entire product.
+seg = {'record_already_poor': dict(n=0, ours=0, worst=0),
+       'record_still_fine': dict(n=0, ours=0, worst=0)}
+for _, e in ev_test.iterrows():
+    if e['sid'] not in P:
+        continue
+    ref = int(e['prev_year'])
+    hit = at_or_before(e['sid'], ref)
+    if not hit:
+        continue
+    band = 'record_already_poor' if hit[1]['rating'] <= 5 else 'record_still_fine'
+    seg[band]['n'] += 1
+    seg[band]['ours'] += e['sid'] in top_by(ref, 'prio')
+    seg[band]['worst'] += e['sid'] in top_by(ref, 'worst_recorded')
+print()
+print('  WHERE THE TWO RANKINGS DIFFER (events split by what the file said at the time):')
+print(f'    {"segment":<22}{"events":>8}{"ours":>8}{"worst-first":>13}')
+for k, v in seg.items():
+    print(f'    {k:<22}{v["n"]:>8}{v["ours"]:>8}{v["worst"]:>13}')
+fine = seg['record_still_fine']
+print(f'\n    On structures the record still called fine, worst-first found '
+      f'{fine["worst"]} of {fine["n"]}.')
+print(f'    Dissent found {fine["ours"]}. That gap is the product.')
+
+CONTROLS = dict(events=len(ev_rows), flagged=flagged, recall=round(recall, 4),
+                segments=seg,
+                budget=BUDGET_FRAC,
+                lift_vs_random=round(recall / BUDGET_FRAC, 3),
+                worst_recorded_caught=int(ctl_flagged['worst_recorded']),
+                worst_recorded_lift=round(ctl_flagged['worst_recorded'] / n_ev / BUDGET_FRAC, 3),
+                rating_matched_expected=round(exp_strat, 2),
+                lift_vs_rating_matched=round(flagged / max(exp_strat, 1e-9), 3))
 
 # ---------------------------------------------------------------- exports
 latest_year = int(df['year'].max())

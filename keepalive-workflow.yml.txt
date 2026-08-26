@@ -1,0 +1,22 @@
+name: keep the API warm
+
+# Render's free tier spins an idle instance down and the cold start is ~40s.
+# This keeps the judging window free of that.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping /api/ping
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 \
+                   https://dissent-api-jgod.onrender.com/api/ping) && \
+            [ "$code" = "200" ] && echo "awake (HTTP $code)" && exit 0
+            echo "attempt $i got HTTP $code, retrying"; sleep 20
+          done
+          echo "could not wake the API"; exit 1
