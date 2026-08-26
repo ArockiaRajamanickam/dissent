@@ -414,7 +414,8 @@ function setBasemap(kind) {
 }
 async function initMap() {
   if (typeof L === 'undefined') { $('#map-side').style.display = 'none'; return; }
-  __map = L.map('map', { scrollWheelZoom: true, zoomControl: true });
+  __map = L.map('map', { scrollWheelZoom: true, zoomControl: true,
+    zoomAnimation: false, markerZoomAnimation: false });
   __map.setView([41.65, -71.5], 10);
   setBasemap('dark');
   try {
