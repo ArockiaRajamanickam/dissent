@@ -387,10 +387,27 @@ const TILES = {
   sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         'Esri, Maxar, Earthstar Geographics'],
 };
+function satMiniHTML(lat, lon, w = 236, h = 150, z = 17) {
+  const scale = 256 * Math.pow(2, z);
+  const s = Math.sin(lat * Math.PI / 180);
+  const px = (lon + 180) / 360 * scale;
+  const py = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * scale;
+  const left = px - w / 2, top = py - h / 2;
+  let imgs = '';
+  for (let tx = Math.floor(left / 256); tx * 256 < left + w; tx++) {
+    for (let ty = Math.floor(top / 256); ty * 256 < top + h; ty++) {
+      imgs += `<img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${ty}/${tx}"` +
+              ` style="left:${Math.round(tx * 256 - left)}px;top:${Math.round(ty * 256 - top)}px" alt="">`;
+    }
+  }
+  return `<div class="sat-mini" style="width:${w}px;height:${h}px">${imgs}` +
+         `<span class="sat-cross"></span><span class="sat-tag">FROM ORBIT | Esri</span></div>`;
+}
 function setBasemap(kind) {
   if (!__map) return;
   if (__baseLayer) __map.removeLayer(__baseLayer);
-  __baseLayer = L.tileLayer(TILES[kind][0], { attribution: TILES[kind][1], maxZoom: 18 }).addTo(__map);
+  __baseLayer = L.tileLayer(TILES[kind][0], { attribution: TILES[kind][1],
+    maxZoom: 18, maxNativeZoom: kind === 'dark' ? 15 : 18 }).addTo(__map);
   __baseLayer.bringToBack();
   document.querySelectorAll('#base-mode button').forEach(b =>
     b.classList.toggle('active', b.dataset.base === kind));
@@ -423,10 +440,12 @@ function rebuildMarkers() {
         className: band === 'inspect' ? 'mk-pulse' : '',
       };
       const mk = L.circleMarker([a.lat, a.lon], base).addTo(__map).bindPopup(
+        satMiniHTML(a.lat, a.lon) +
         `<b>${a.carries || 'Unnamed'}</b><br>over ${a.crosses || '—'}<br>` +
         `<span class="pop-band" style="background:${BAND_COLOR[band]}">${BAND_LABEL[band]}</span> ` +
         `record ${a.recorded} vs physics ${a.pred.toFixed(1)}<br>` +
-        `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`);
+        `<a href="#docket" onclick="openDossier('${a.sid}');return false;">open dossier</a>`,
+        { maxWidth: 260, minWidth: 240 });
       mk.__base = base; mk.__band = band;
       __markers[a.sid] = mk;
     });
@@ -875,8 +894,9 @@ function natClick(e) {
   }
   if (best < 0 || bd > 0.02) return;
   const c = nat.cond[best];
-  L.popup().setLatLng([nat.lat[best], nat.lon[best]])
-    .setContent(`<b>${nat.meta.states[nat.stIdx[best]]}</b> | national snapshot 2025<br>` +
+  L.popup({ maxWidth: 260, minWidth: 240 }).setLatLng([nat.lat[best], nat.lon[best]])
+    .setContent(satMiniHTML(nat.lat[best], nat.lon[best]) +
+      `<b>${nat.meta.states[nat.stIdx[best]]}</b> | national snapshot 2025<br>` +
       `condition <b>${c}</b>/9 (${c <= 4 ? 'poor' : c <= 6 ? 'fair' : 'good'})<br>` +
       `built ${nat.built[best] || 'unknown'} | ADT ${fmt(nat.adt[best] || null)}<br>` +
       `<span style="font-size:10px">deep audit runs in the four fleet states</span>`)
@@ -939,8 +959,10 @@ function initWorldMap() {
     L.circleMarker([c.lat, c.lon], { radius: 8, color: '#FAF8F4', weight: 1.2,
       fillColor: '#B23348', fillOpacity: 0.95, className: 'mk-pulse' })
       .addTo(__worldMap)
-      .bindPopup(`<b>${c.name}</b><br>${c.place}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
-                 `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView({behavior:'smooth'});return false;">read the case</a>`);
+      .bindPopup(satMiniHTML(c.lat, c.lon, 236, 140, 16) +
+                 `<b>${c.name}</b><br>${c.place}, ${c.date}${c.toll ? '<br>' + c.toll + ' dead' : ''}<br>` +
+                 `<a href="#world" onclick="document.getElementById('case-${c.lat}').scrollIntoView({behavior:'smooth'});return false;">read the case</a>`,
+                 { maxWidth: 260, minWidth: 240 });
   });
   L.circleMarker([41.68, -71.5], { radius: 9, color: '#FAF8F4', weight: 1.5,
     fillColor: '#3A5CA8', fillOpacity: 0.95 }).addTo(__worldMap)

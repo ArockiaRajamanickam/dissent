@@ -428,3 +428,12 @@ table.docket td b { font-family: 'Source Serif 4', serif; font-weight: 600; font
 #base-mode { top: 52px; }
 .doss-sat-wrap { margin-top: 2px; }
 #doss-sat { height: 280px; border: 1px solid var(--line); border-bottom: none; background: #111; }
+
+.sat-mini { position: relative; overflow: hidden; margin: 0 0 8px; border: 1px solid var(--line); background: #0B1129; }
+.sat-mini img { position: absolute; width: 256px; height: 256px; max-width: none; }
+.sat-cross { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px;
+  margin: -13px 0 0 -13px; border: 2px solid #C6283C; border-radius: 50%; }
+.sat-cross::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px;
+  margin: -2px 0 0 -2px; background: #C6283C; border-radius: 50%; }
+.sat-tag { position: absolute; right: 4px; bottom: 4px; font-family: 'Courier Prime', monospace;
+  font-size: 8px; color: #FAF8F4; background: rgba(11,17,41,0.75); padding: 1px 5px; letter-spacing: 0.5px; }
