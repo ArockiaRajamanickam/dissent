@@ -157,6 +157,9 @@ main { flex: 1; min-height: 0; position: relative; }
 .result-count { font-family: 'Courier Prime', monospace; font-size: 10.5px; color: var(--grey); }
 
 table.docket { border-collapse: collapse; width: 100%; min-width: 1010px; }
+/* Narrow tables (the backtest scoreboard, the segment split) have four columns,
+   not thirteen, and must not inherit the wide docket's horizontal scroll. */
+table.docket.compact { min-width: 0; }
 table.docket th {
   background: var(--navy); color: #fff; font-family: 'Courier Prime', monospace;
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;

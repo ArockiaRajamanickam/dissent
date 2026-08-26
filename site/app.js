@@ -907,7 +907,7 @@ async function runBacktest() {
           THE SCOREBOARD — ALERT BUDGET ${Math.round(d.alert_budget * 100)}% = ${fmt(d.alert_size)} STRUCTURES
         </p>
         <div class="tablewrap" style="max-height:none">
-        <table class="docket"><thead><tr>
+        <table class="docket compact"><thead><tr>
           <th>Ranking</th><th>Found</th><th>Precision</th><th>Lift</th>
         </tr></thead><tbody>
           <tr><td><b>Dissent (ours)</b></td><td class="mono">${d.events_caught} of ${d.events_total}</td>
@@ -926,7 +926,7 @@ async function runBacktest() {
       <div class="card" style="margin-top:12px">
         <p class="mono" style="font-size:13px;letter-spacing:.02em">WHERE THE TWO RANKINGS DIFFER</p>
         <div class="tablewrap" style="max-height:none">
-        <table class="docket"><thead><tr>
+        <table class="docket compact"><thead><tr>
           <th>What the ${d.start_year} file said</th><th>Failures</th>
           <th>Dissent</th><th>Worst-first</th></tr></thead><tbody>
           <tr><td><b>Still called it fine (6+)</b></td><td class="mono">${fine.events}</td>
@@ -1022,7 +1022,7 @@ async function renderIndex() {
         because it confounds a real signal with our own model bias. They are still audited and still
         get a docket. We simply decline to say their inspectors are optimistic.</p>
         <div class="tablewrap" style="max-height:220px">
-        <table class="docket"><thead><tr>
+        <table class="docket compact"><thead><tr>
           <th>Jurisdiction</th><th>Structures</th><th>Distance outside</th>
           <th>What puts it outside</th><th>Ranking</th></tr></thead><tbody>
         ${d.withheld_index.map(x => `<tr>
